@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://dgs5bjc4t87kc"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_y0q6o"]
+
+[resource]
+script = ExtResource("1_y0q6o")
+group_name = "Renters"
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"

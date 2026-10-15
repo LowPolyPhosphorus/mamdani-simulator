@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://jrpc11vsmg0t"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_fukct"]
+
+[resource]
+script = ExtResource("1_fukct")
+group_name = "Small Businesses"
+threshold = 70
+turns_to_meet = 5
+reward = 7
+penalty = 6
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"

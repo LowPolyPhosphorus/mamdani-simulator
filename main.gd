@@ -2,10 +2,13 @@ extends Control
 
 const HAND_SIZE := 5
 const EVENT_CHANCE := 0.5
+const MAX_DEMANDS := 3
+const DEMAND_CHANCE := 0.7
 const METERS := ["budget", "affordability", "ridership", "approval"]
 
 @export var deck: Array[PolicyCard] = []
 @export var events: Array[GameEvent] = []
+@export var demand_pool: Array[Demand] = []
 
 @onready var turn_label: Label = %TurnLabel
 @onready var end_turn_button: Button = %EndTurnButton
@@ -16,6 +19,7 @@ const METERS := ["budget", "affordability", "ridership", "approval"]
 
 var actions_label := Label.new()
 var policies_label := Label.new()
+var demands_label := Label.new()
 var log_label := Label.new()
 var log_lines: Array[String] = []
 var current_event: GameEvent
@@ -27,6 +31,7 @@ func _ready() -> void:
 	_build_info_labels()
 	_build_meters()
 	end_turn_button.pressed.connect(GameState.end_turn)
+	GameState.turn_changed.connect(_spawn_demand)
 	GameState.turn_changed.connect(_update_ui)
 	GameState.meters_changed.connect(_update_ui)
 	GameState.turn_changed.connect(_draw_hand)
@@ -37,13 +42,15 @@ func _ready() -> void:
 	event_dialog.canceled.connect(_on_event_choice.bind(false))
 	result_dialog.confirmed.connect(_restart)
 	result_dialog.canceled.connect(_restart)
+	_spawn_demand()
+	_spawn_demand()
 	_update_ui()
 	_draw_hand()
 
 
 func _build_info_labels() -> void:
 	var vbox := meters_container.get_parent()
-	for label in [actions_label, policies_label, log_label]:
+	for label in [actions_label, policies_label, demands_label, log_label]:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(label)
 	vbox.move_child(actions_label, 1)
@@ -55,6 +62,7 @@ func _update_ui() -> void:
 	turn_label.text = "Turn %d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS]
 	actions_label.text = "Actions left: %d / %d" % [GameState.actions_left, GameState.ACTIONS_PER_TURN]
 	_update_policies_label()
+	_update_demands_label()
 	_update_meters()
 	if GameState.is_game_over() and not game_ended:
 		game_ended = true
@@ -72,6 +80,29 @@ func _update_policies_label() -> void:
 	for policy in GameState.active_policies:
 		parts.append("%s (upkeep %d)" % [policy.card_name, policy.upkeep])
 	policies_label.text = "Active policies: " + ", ".join(parts)
+
+
+func _update_demands_label() -> void:
+	if GameState.active_demands.is_empty():
+		demands_label.text = "Demands: none"
+		return
+	var lines: Array[String] = ["Demands:"]
+	for entry in GameState.active_demands:
+		var d: Demand = entry["demand"]
+		lines.append("%s: %s %d+ (%d turns left)" % [d.group_name, d.meter, d.threshold, entry["turns_left"]])
+	demands_label.text = "\n".join(lines)
+
+
+func _spawn_demand() -> void:
+	if GameState.active_demands.size() >= MAX_DEMANDS or GameState.is_game_over():
+		return
+	if randf() > DEMAND_CHANCE:
+		return
+	var active: Array = GameState.active_demands.map(func(e): return e["demand"])
+	var options := demand_pool.filter(func(d): return not active.has(d) and GameState.get(d.meter) < d.threshold)
+	if options.is_empty():
+		return
+	GameState.add_demand(options.pick_random())
 
 
 func _build_meters() -> void:
@@ -140,7 +171,7 @@ func _on_card_pressed(card: PolicyCard, button: Button) -> void:
 
 func _on_log_message(text: String) -> void:
 	log_lines.append(text)
-	if log_lines.size() > 4:
+	if log_lines.size() > 6:
 		log_lines.pop_front()
 	log_label.text = "\n".join(log_lines)
 

@@ -16,17 +16,29 @@
 [ext_resource type="Resource" uid="uid://d0mu4yu3phse0" path="res://events/snowstorm.tres" id="14_yaehf"]
 [ext_resource type="Resource" uid="uid://cvncx4dfpcx0q" path="res://events/transit_strike.tres" id="15_074og"]
 [ext_resource type="Resource" uid="uid://0phmiwu58xqi" path="res://events/budget_shortfall.tres" id="16_cegan"]
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="17_0odxb"]
+[ext_resource type="Resource" uid="uid://b7poraxuo8mpr" path="res://demands/commuters.tres" id="18_lswn8"]
+[ext_resource type="Resource" uid="uid://c81ncioch0hnq" path="res://demands/parents.tres" id="19_a6jrf"]
+[ext_resource type="Resource" uid="uid://dgs5bjc4t87kc" path="res://demands/renters.tres" id="20_xuqvo"]
+[ext_resource type="Resource" uid="uid://cp6mh22tb4tvy" path="res://demands/riders.tres" id="21_qsp4k"]
+[ext_resource type="Resource" uid="uid://dugujepkt4le2" path="res://demands/seniors.tres" id="22_kq58d"]
+[ext_resource type="Resource" uid="uid://jrpc11vsmg0t" path="res://demands/small_businesses.tres" id="23_seu75"]
+[ext_resource type="Resource" uid="uid://baw0senc6d8af" path="res://demands/taxpayers.tres" id="24_htxhm"]
+[ext_resource type="Resource" uid="uid://2kibhwd5gucx" path="res://demands/transit_workers.tres" id="25_jq2sk"]
 
 [node name="Main" type="Control" unique_id=239545250]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 2.0
+offset_right = 2.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_ig7tw")
 deck = Array[ExtResource("2_lquwl")]([ExtResource("3_dg77c"), ExtResource("4_ycdy4"), ExtResource("5_5vw27"), ExtResource("6_w48qg"), ExtResource("7_vivmo"), ExtResource("3_7mycd"), ExtResource("9_2cqfq"), ExtResource("10_yaehf"), ExtResource("4_272bh"), ExtResource("12_074og")])
 events = Array[ExtResource("13_2cqfq")]([ExtResource("14_yaehf"), ExtResource("15_074og"), ExtResource("16_cegan")])
+demand_pool = Array[ExtResource("17_0odxb")]([ExtResource("18_lswn8"), ExtResource("19_a6jrf"), ExtResource("20_xuqvo"), ExtResource("21_qsp4k"), ExtResource("22_kq58d"), ExtResource("23_seu75"), ExtResource("24_htxhm"), ExtResource("25_jq2sk")])
 
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=982329414]
 custom_minimum_size = Vector2(500, 0)

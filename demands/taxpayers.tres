@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://baw0senc6d8af"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_btxi7"]
+
+[resource]
+script = ExtResource("1_btxi7")
+group_name = "Taxpayers"
+turns_to_meet = 3
+reward = 5
+penalty = 6
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"

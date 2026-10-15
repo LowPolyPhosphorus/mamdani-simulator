@@ -16,6 +16,7 @@ var ridership: int = 50
 var approval: int = 50
 var actions_left: int = ACTIONS_PER_TURN
 var active_policies: Array[PolicyCard] = []
+var active_demands: Array[Dictionary] = []
 
 
 func _apply(meter: String, amount: int) -> void:
@@ -58,6 +59,13 @@ func apply_choice(choice: EventChoice) -> void:
 	meters_changed.emit()
 
 
+func add_demand(demand: Demand) -> void:
+	active_demands.append({"demand": demand, "turns_left": demand.turns_to_meet})
+	log_message.emit("New demand: %s want %s at %d+ within %d turns." % [
+		demand.group_name, demand.meter, demand.threshold, demand.turns_to_meet
+	])
+
+
 func end_turn() -> void:
 	turn += 1
 	actions_left = ACTIONS_PER_TURN
@@ -66,6 +74,7 @@ func end_turn() -> void:
 	_apply("ridership", -3)
 	_apply("approval", -2)
 	_run_ongoing_policies()
+	_resolve_demands()
 	turn_changed.emit()
 
 
@@ -80,6 +89,20 @@ func _run_ongoing_policies() -> void:
 		_apply("affordability", policy.per_turn_affordability)
 		_apply("ridership", policy.per_turn_ridership)
 		_apply("approval", policy.per_turn_approval)
+
+
+func _resolve_demands() -> void:
+	for entry in active_demands.duplicate():
+		var demand: Demand = entry["demand"]
+		entry["turns_left"] -= 1
+		if get(demand.meter) >= demand.threshold:
+			active_demands.erase(entry)
+			_apply("approval", demand.reward)
+			log_message.emit("%s are happy (+%d approval)." % [demand.group_name, demand.reward])
+		elif entry["turns_left"] <= 0:
+			active_demands.erase(entry)
+			_apply("approval", -demand.penalty)
+			log_message.emit("%s feel ignored (-%d approval)." % [demand.group_name, demand.penalty])
 
 
 func is_term_over() -> bool:
@@ -109,3 +132,4 @@ func reset() -> void:
 	approval = 50
 	actions_left = ACTIONS_PER_TURN
 	active_policies.clear()
+	active_demands.clear()

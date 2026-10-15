@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://cp6mh22tb4tvy"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_d3q8f"]
+
+[resource]
+script = ExtResource("1_d3q8f")
+group_name = "Riders"
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"
