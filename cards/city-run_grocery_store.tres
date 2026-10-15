@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://78l73c15dmdp"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_0s857"]
+
+[resource]
+script = ExtResource("1_0s857")
+card_name = "City-Run Grocery Store"
+affordability_change = 15
+approval_change = 8
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

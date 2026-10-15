@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://dbge3r2k64fa2"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_qlbbk"]
+
+[resource]
+script = ExtResource("1_qlbbk")
+card_name = "200,000 New Homes"
+cost = 35
+affordability_change = 15
+ridership_change = 5
+approval_change = 8
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

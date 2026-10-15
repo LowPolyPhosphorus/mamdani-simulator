@@ -1,17 +1,24 @@
 extends Control
 
+const HAND_SIZE := 3
+
+@export var deck: Array[PolicyCard] = []
+
 @onready var turn_label: Label = %TurnLabel
 @onready var meters_label: Label = %MetersLabel
 @onready var end_turn_button: Button = %EndTurnButton
-@export var hand: Array[PolicyCard] = []
 @onready var hand_container: HBoxContainer = %HandContainer
+
 
 func _ready() -> void:
 	end_turn_button.pressed.connect(GameState.end_turn)
 	GameState.turn_changed.connect(_update_ui)
 	GameState.meters_changed.connect(_update_ui)
+	GameState.turn_changed.connect(_draw_hand)
+	print("Deck size: ", deck.size())
 	_update_ui()
-	_build_hand()
+	_draw_hand()
+
 
 func _update_ui() -> void:
 	if GameState.is_term_over():
@@ -23,14 +30,24 @@ func _update_ui() -> void:
 		GameState.budget, GameState.affordability, GameState.ridership, GameState.approval
 	]
 
-func _build_hand() -> void:
-	for card in hand:
-		var button := Button.new()
-		button.text = "%s (cost %d)" % [card.card_name, card.cost]
-		button.tooltip_text = card.description
-		button.pressed.connect(_on_card_pressed.bind(card, button))
-		hand_container.add_child(button)
-		
+
+func _draw_hand() -> void:
+	for child in hand_container.get_children():
+		child.queue_free()
+	var pool := deck.duplicate()
+	pool.shuffle()
+	for card in pool.slice(0, HAND_SIZE):
+		_add_card_button(card)
+
+
+func _add_card_button(card: PolicyCard) -> void:
+	var button := Button.new()
+	button.text = "%s (cost %d)" % [card.card_name, card.cost]
+	button.tooltip_text = card.description
+	button.pressed.connect(_on_card_pressed.bind(card, button))
+	hand_container.add_child(button)
+
+
 func _on_card_pressed(card: PolicyCard, button: Button) -> void:
 	if GameState.play_card(card):
 		button.disabled = true

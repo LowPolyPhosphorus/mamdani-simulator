@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bqbhpi571oysf"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_twd71"]
+
+[resource]
+script = ExtResource("1_twd71")
+card_name = "$30 Minimum Wage by 2030"
+affordability_change = 12
+ridership_change = 3
+approval_change = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

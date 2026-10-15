@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://dd1tinoiybowf"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_vtjx1"]
+
+[resource]
+script = ExtResource("1_vtjx1")
+card_name = "Universal Childcare"
+cost = 40
+affordability_change = 20
+approval_change = 12
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

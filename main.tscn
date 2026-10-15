@@ -3,8 +3,15 @@
 [ext_resource type="Script" uid="uid://c7rhxaye2lca" path="res://main.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="2_lquwl"]
 [ext_resource type="Resource" uid="uid://cjrklycf2mxgn" path="res://cards/fare_free_buses.tres" id="3_7mycd"]
+[ext_resource type="Resource" uid="uid://bqbhpi571oysf" path="res://cards/30_minimum_wage_by_2030.tres" id="3_dg77c"]
 [ext_resource type="Resource" uid="uid://b2ff7g0pnx5ci" path="res://cards/rent_freeze.tres" id="4_272bh"]
+[ext_resource type="Resource" uid="uid://dbge3r2k64fa2" path="res://cards/200000_new_homes.tres" id="4_ycdy4"]
 [ext_resource type="Resource" uid="uid://cth08hefli81t" path="res://cards/bus_lanes.tres" id="5_5vw27"]
+[ext_resource type="Resource" uid="uid://78l73c15dmdp" path="res://cards/city-run_grocery_store.tres" id="6_w48qg"]
+[ext_resource type="Resource" uid="uid://grj4v2beub7y" path="res://cards/crisis_response_teams.tres" id="7_vivmo"]
+[ext_resource type="Resource" uid="uid://cgh18th2qib6l" path="res://cards/faster_buses.tres" id="9_2cqfq"]
+[ext_resource type="Resource" uid="uid://cxamoy1mghpq2" path="res://cards/tax_millionaires.tres" id="10_yaehf"]
+[ext_resource type="Resource" uid="uid://dd1tinoiybowf" path="res://cards/universal_childcare.tres" id="12_074og"]
 
 [node name="Main" type="Control" unique_id=239545250]
 layout_mode = 3
@@ -14,7 +21,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_ig7tw")
-hand = Array[ExtResource("2_lquwl")]([ExtResource("3_7mycd"), ExtResource("4_272bh"), ExtResource("5_5vw27")])
+deck = Array[ExtResource("2_lquwl")]([ExtResource("3_dg77c"), ExtResource("4_ycdy4"), ExtResource("5_5vw27"), ExtResource("6_w48qg"), ExtResource("7_vivmo"), ExtResource("3_7mycd"), ExtResource("9_2cqfq"), ExtResource("10_yaehf"), ExtResource("4_272bh"), ExtResource("12_074og")])
 
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=982329414]
 custom_minimum_size = Vector2(500, 0)

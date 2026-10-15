@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://cxamoy1mghpq2"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_xpmcp"]
+
+[resource]
+script = ExtResource("1_xpmcp")
+card_name = "Tax the Millionaires"
+cost = 5
+budget_change = 25
+approval_change = -6
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

@@ -31,6 +31,7 @@ func play_card(card: PolicyCard) -> bool:
 	if budget < card.cost:
 		return false
 	change_meter("budget", -card.cost)
+	change_meter("budget", card.budget_change)
 	change_meter("affordability", card.affordability_change)
 	change_meter("ridership", card.ridership_change)
 	change_meter("approval", card.approval_change)

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://cgh18th2qib6l"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_bhrmg"]
+
+[resource]
+script = ExtResource("1_bhrmg")
+card_name = "Faster Buses"
+cost = 12
+ridership_change = 10
+approval_change = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"
