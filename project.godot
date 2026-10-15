@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="mamdani-simulator"
+run/main_scene="uid://dh0sy75w0m1g"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*uid://bnuatvsw68qm3"
 
 [display]
 
