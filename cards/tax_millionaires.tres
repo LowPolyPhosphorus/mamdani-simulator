@@ -6,6 +6,7 @@
 script = ExtResource("1_xpmcp")
 card_name = "Tax the Millionaires"
 cost = 5
+citywide = true
 approval_change = -6
 ongoing = true
 upkeep = -8

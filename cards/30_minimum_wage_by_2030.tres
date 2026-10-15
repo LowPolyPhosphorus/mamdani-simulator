@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_twd71")
 card_name = "$30 Minimum Wage by 2030"
+citywide = true
 affordability_change = 12
 ridership_change = 3
 approval_change = 2

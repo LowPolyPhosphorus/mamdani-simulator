@@ -6,6 +6,7 @@
 script = ExtResource("1_lt64n")
 card_name = "Rent Freezes"
 cost = 30
+citywide = true
 ridership_change = 20
 approval_change = 10
 ongoing = true
