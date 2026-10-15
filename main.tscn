@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://dh0sy75w0m1g"]
+
+[ext_resource type="Script" uid="uid://c7rhxaye2lca" path="res://main.gd" id="1_ig7tw"]
+
+[node name="Main" type="Control" unique_id=239545250]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ig7tw")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=982329414]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="VBoxContainer" unique_id=282290433]
+layout_mode = 2
+text = "Turn 1"
+
+[node name="Button" type="Button" parent="VBoxContainer" unique_id=284163491]
+layout_mode = 2
+text = "End Turn"
