@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://cth08hefli81t"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_2gd1i"]
+
+[resource]
+script = ExtResource("1_2gd1i")
+card_name = "Bus Lanes"
+affordability_change = 10
+approval_change = 3
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

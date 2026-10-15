@@ -1,6 +1,10 @@
 [gd_scene format=3 uid="uid://dh0sy75w0m1g"]
 
 [ext_resource type="Script" uid="uid://c7rhxaye2lca" path="res://main.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="2_lquwl"]
+[ext_resource type="Resource" uid="uid://cjrklycf2mxgn" path="res://cards/fare_free_buses.tres" id="3_7mycd"]
+[ext_resource type="Resource" uid="uid://b2ff7g0pnx5ci" path="res://cards/rent_freeze.tres" id="4_272bh"]
+[ext_resource type="Resource" uid="uid://cth08hefli81t" path="res://cards/bus_lanes.tres" id="5_5vw27"]
 
 [node name="Main" type="Control" unique_id=239545250]
 layout_mode = 3
@@ -10,6 +14,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_ig7tw")
+hand = Array[ExtResource("2_lquwl")]([ExtResource("3_7mycd"), ExtResource("4_272bh"), ExtResource("5_5vw27")])
 
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=982329414]
 custom_minimum_size = Vector2(500, 0)
@@ -36,3 +41,8 @@ text = "End Turn"
 unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
+
+[node name="HandContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=44131931]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1

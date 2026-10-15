@@ -15,6 +15,7 @@ var approval: int = 50
 func end_turn() -> void:
 	turn += 1
 	turn_changed.emit()
+	turn_changed.emit()
 
 
 func change_meter(meter: String, amount: int) -> void:
@@ -24,3 +25,13 @@ func change_meter(meter: String, amount: int) -> void:
 
 func is_term_over() -> bool:
 	return turn > MAX_TURNS
+
+
+func play_card(card: PolicyCard) -> bool:
+	if budget < card.cost:
+		return false
+	change_meter("budget", -card.cost)
+	change_meter("affordability", card.affordability_change)
+	change_meter("ridership", card.ridership_change)
+	change_meter("approval", card.approval_change)
+	return true

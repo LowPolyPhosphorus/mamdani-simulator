@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://b2ff7g0pnx5ci"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_lt64n"]
+
+[resource]
+script = ExtResource("1_lt64n")
+card_name = "Rent Freezes"
+cost = 30
+ridership_change = 20
+approval_change = 10
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"
