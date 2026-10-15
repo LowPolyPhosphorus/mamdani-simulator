@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://cvncx4dfpcx0q"]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_4p0nl"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_w6cto"]
+
+[sub_resource type="Resource" id="Resource_w6cto"]
+script = ExtResource("1_w6cto")
+choice_text = "Negotiate"
+budget_change = -12
+ridership_change = 4
+approval_change = 3
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_r3c3k"]
+script = ExtResource("1_w6cto")
+choice_text = "Hold firm"
+ridership_change = -12
+approval_change = -4
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_4p0nl")
+title = "Transit Strike"
+description = "gah!"
+choice_a = SubResource("Resource_w6cto")
+choice_b = SubResource("Resource_r3c3k")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

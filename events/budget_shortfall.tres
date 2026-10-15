@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://0phmiwu58xqi"]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_m2uty"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_ytoc8"]
+
+[sub_resource type="Resource" id="Resource_ytoc8"]
+script = ExtResource("1_ytoc8")
+choice_text = "Cut some services"
+budget_change = 15
+approval_change = -6
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_xvxbh"]
+script = ExtResource("1_ytoc8")
+choice_text = "Delay payments"
+budget_change = 8
+affordability_change = -4
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_m2uty")
+title = "Budget Shortfall"
+description = "durr"
+choice_a = SubResource("Resource_ytoc8")
+choice_b = SubResource("Resource_xvxbh")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"
