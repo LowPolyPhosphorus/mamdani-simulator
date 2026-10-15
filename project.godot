@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="mamdani-simulator"
-run/main_scene="uid://dh0sy75w0m1g"
+run/main_scene="uid://bx7ua24t2tn67"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 

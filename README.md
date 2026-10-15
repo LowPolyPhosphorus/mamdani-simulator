@@ -1,2 +1,2 @@
 # mamdani-simulator
-mamdani but its a shitty godot game
+a shitty turn based city management game built in Godot 4. 
