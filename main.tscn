@@ -34,8 +34,14 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 3.0
+offset_right = 3.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="MetersContainer" type="VBoxContainer" parent="VBoxContainer" unique_id=744699929]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="TurnLabel" type="Label" parent="VBoxContainer" unique_id=282290433]
 unique_name_in_owner = true
@@ -48,11 +54,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 text = "End Turn"
-
-[node name="MetersLabel" type="Label" parent="VBoxContainer" unique_id=484055056]
-unique_name_in_owner = true
-layout_mode = 2
-horizontal_alignment = 1
 
 [node name="HandContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=44131931]
 unique_name_in_owner = true

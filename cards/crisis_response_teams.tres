@@ -7,4 +7,7 @@ script = ExtResource("1_stkl8")
 card_name = "Crisis Response Teams"
 cost = 15
 approval_change = 7
+ongoing = true
+upkeep = 3
+per_turn_approval = 2
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

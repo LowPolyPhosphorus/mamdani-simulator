@@ -8,4 +8,6 @@ card_name = "Rent Freezes"
 cost = 30
 ridership_change = 20
 approval_change = 10
+ongoing = true
+upkeep = 2
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

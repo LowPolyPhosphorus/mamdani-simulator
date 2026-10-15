@@ -7,4 +7,7 @@ script = ExtResource("1_0s857")
 card_name = "City-Run Grocery Store"
 affordability_change = 15
 approval_change = 8
+ongoing = true
+upkeep = 3
+per_turn_affordability = 2
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

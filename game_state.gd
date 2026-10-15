@@ -2,50 +2,88 @@ extends Node
 
 signal turn_changed
 signal meters_changed
+signal log_message(text: String)
 
 const MAX_TURNS := 24
+const ACTIONS_PER_TURN := 2
+const BASE_INCOME := 10
+const LAPSE_APPROVAL_PENALTY := 8
 
 var turn: int = 1
 var budget: int = 50
 var affordability: int = 50
 var ridership: int = 50
 var approval: int = 50
+var actions_left: int = ACTIONS_PER_TURN
+var active_policies: Array[PolicyCard] = []
+
+
+func _apply(meter: String, amount: int) -> void:
+	set(meter, clampi(get(meter) + amount, 0, 100))
+
+
+func change_meter(meter: String, amount: int) -> void:
+	_apply(meter, amount)
+	meters_changed.emit()
+
+
+func can_play(card: PolicyCard) -> bool:
+	if actions_left <= 0 or budget < card.cost:
+		return false
+	if card.ongoing and active_policies.has(card):
+		return false
+	return true
+
+
+func play_card(card: PolicyCard) -> bool:
+	if not can_play(card):
+		return false
+	actions_left -= 1
+	if card.ongoing:
+		active_policies.append(card)
+	_apply("budget", -card.cost + card.budget_change)
+	_apply("affordability", card.affordability_change)
+	_apply("ridership", card.ridership_change)
+	_apply("approval", card.approval_change)
+	log_message.emit("Enacted: %s" % card.card_name)
+	meters_changed.emit()
+	return true
+
+
+func apply_choice(choice: EventChoice) -> void:
+	_apply("budget", choice.budget_change)
+	_apply("affordability", choice.affordability_change)
+	_apply("ridership", choice.ridership_change)
+	_apply("approval", choice.approval_change)
+	meters_changed.emit()
 
 
 func end_turn() -> void:
 	turn += 1
-	change_meter("budget", 10)
-	change_meter("affordability", -3)
-	change_meter("ridership", -3)
-	change_meter("approval", -2)
+	actions_left = ACTIONS_PER_TURN
+	_apply("budget", BASE_INCOME)
+	_apply("affordability", -3)
+	_apply("ridership", -3)
+	_apply("approval", -2)
+	_run_ongoing_policies()
 	turn_changed.emit()
-	
 
 
-func change_meter(meter: String, amount: int) -> void:
-	set(meter, clampi(get(meter) + amount, 0, 100))
-	meters_changed.emit()
+func _run_ongoing_policies() -> void:
+	for policy in active_policies.duplicate():
+		if policy.upkeep > 0 and budget < policy.upkeep:
+			active_policies.erase(policy)
+			_apply("approval", -LAPSE_APPROVAL_PENALTY)
+			log_message.emit("Couldn't fund %s. It lapsed and approval fell." % policy.card_name)
+			continue
+		_apply("budget", -policy.upkeep)
+		_apply("affordability", policy.per_turn_affordability)
+		_apply("ridership", policy.per_turn_ridership)
+		_apply("approval", policy.per_turn_approval)
 
 
 func is_term_over() -> bool:
 	return turn > MAX_TURNS
-
-
-func play_card(card: PolicyCard) -> bool:
-	if budget < card.cost:
-		return false
-	change_meter("budget", -card.cost)
-	change_meter("budget", card.budget_change)
-	change_meter("affordability", card.affordability_change)
-	change_meter("ridership", card.ridership_change)
-	change_meter("approval", card.approval_change)
-	return true
-
-func apply_choice(choice: EventChoice) -> void:
-	change_meter("budget", choice.budget_change)
-	change_meter("affordability", choice.affordability_change)
-	change_meter("ridership", choice.ridership_change)
-	change_meter("approval", choice.approval_change)
 
 
 func is_game_over() -> bool:
@@ -69,3 +107,5 @@ func reset() -> void:
 	affordability = 50
 	ridership = 50
 	approval = 50
+	actions_left = ACTIONS_PER_TURN
+	active_policies.clear()

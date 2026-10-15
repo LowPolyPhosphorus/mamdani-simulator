@@ -6,6 +6,8 @@
 script = ExtResource("1_xpmcp")
 card_name = "Tax the Millionaires"
 cost = 5
-budget_change = 25
 approval_change = -6
+ongoing = true
+upkeep = -8
+per_turn_approval = -2
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"
