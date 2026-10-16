@@ -5,35 +5,45 @@ const EVENT_CHANCE := 0.5
 const MAX_DEMANDS := 3
 const DEMAND_CHANCE := 0.7
 const METERS := ["budget", "affordability", "ridership", "approval"]
+const MAP_LAYOUT := {
+	"Manhattan": Rect2(150, 8, 120, 170),
+	"Bronx": Rect2(285, 8, 175, 92),
+	"Queens": Rect2(285, 108, 175, 118),
+	"Brooklyn": Rect2(170, 238, 190, 96),
+	"Staten Island": Rect2(10, 226, 145, 108),
+}
 
 @export var deck: Array[PolicyCard] = []
 @export var events: Array[GameEvent] = []
 @export var demand_pool: Array[Demand] = []
 
-@onready var turn_label: Label = %TurnLabel
-@onready var end_turn_button: Button = %EndTurnButton
-@onready var hand_container: HBoxContainer = %HandContainer
-@onready var meters_container: VBoxContainer = %MetersContainer
-@onready var event_dialog: ConfirmationDialog = %EventDialog
-@onready var result_dialog: AcceptDialog = %ResultDialog
+var turn_label: Label
+var budget_label: Label
+var net_label: Label
+var actions_label: Label
+var end_turn_button: Button
+var policies_box: VBoxContainer
+var demands_box: VBoxContainer
+var log_label: Label
+var hand_box: HBoxContainer
+var event_dialog: ConfirmationDialog
+var result_dialog: AcceptDialog
 
-var actions_label := Label.new()
-var policies_label := Label.new()
-var demands_label := Label.new()
-var log_label := Label.new()
-var target_picker := OptionButton.new()
+var city_bars := {}
+var city_labels := {}
+var borough_buttons := {}
 var log_lines: Array[String] = []
 var current_event: GameEvent
 var game_ended := false
-var meter_bars := {}
-var borough_bars := {}
 
 
 func _ready() -> void:
-	_build_meters()
-	_build_borough_grid()
-	_build_info_labels()
-	_build_target_picker()
+	for child in get_children():
+		child.queue_free()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	theme = UITheme.build()
+	_build_layout()
+	_build_dialogs()
 	end_turn_button.pressed.connect(GameState.end_turn)
 	GameState.turn_changed.connect(_spawn_demand)
 	GameState.turn_changed.connect(_update_ui)
@@ -42,94 +52,196 @@ func _ready() -> void:
 	GameState.turn_changed.connect(_maybe_trigger_event)
 	GameState.meters_changed.connect(_refresh_hand)
 	GameState.log_message.connect(_on_log_message)
-	event_dialog.confirmed.connect(_on_event_choice.bind(true))
-	event_dialog.canceled.connect(_on_event_choice.bind(false))
-	result_dialog.confirmed.connect(_restart)
-	result_dialog.canceled.connect(_restart)
 	_spawn_demand()
 	_spawn_demand()
 	_update_ui()
 	_draw_hand()
 
 
-# -UI=
+# -UI-
 
-func _make_bar(value: float, min_size: Vector2) -> ProgressBar:
+func _build_layout() -> void:
+	var bg := ColorRect.new()
+	bg.color = UITheme.BG
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 14)
+	add_child(margin)
+
+	var root_box := VBoxContainer.new()
+	root_box.add_theme_constant_override("separation", 12)
+	margin.add_child(root_box)
+
+	root_box.add_child(_build_top_bar())
+
+	var middle := HBoxContainer.new()
+	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	middle.add_theme_constant_override("separation", 12)
+	root_box.add_child(middle)
+	middle.add_child(_build_left_panel())
+	middle.add_child(_build_map_panel())
+	middle.add_child(_build_right_panel())
+
+	root_box.add_child(_build_hand_panel())
+
+
+func _make_panel(title: String, min_width: int = 0) -> VBoxContainer:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size.x = min_width
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	if title != "":
+		box.add_child(_label(title.to_upper(), 12, UITheme.MUTED))
+	return box
+
+
+func _label(content: String, font_size: int = 15, col: Color = UITheme.TEXT) -> Label:
+	var label := Label.new()
+	label.text = content
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", col)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return label
+
+
+func _build_top_bar() -> Control:
+	var panel := PanelContainer.new()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 28)
+	panel.add_child(row)
+
+	turn_label = _label("", 22, UITheme.ACCENT)
+	budget_label = _label("", 18)
+	net_label = _label("", 15)
+	actions_label = _label("", 18)
+	row.add_child(turn_label)
+	row.add_child(budget_label)
+	row.add_child(net_label)
+	row.add_child(actions_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	end_turn_button = Button.new()
+	end_turn_button.text = "End Turn"
+	end_turn_button.custom_minimum_size = Vector2(140, 40)
+	row.add_child(end_turn_button)
+	return panel
+
+
+func _build_left_panel() -> Control:
+	var box := _make_panel("Citywide", 290)
+	for meter in METERS:
+		_add_city_row(box, meter)
+	box.add_child(_label("ACTIVE POLICIES", 12, UITheme.MUTED))
+	policies_box = VBoxContainer.new()
+	policies_box.add_theme_constant_override("separation", 6)
+	box.add_child(policies_box)
+	return box.get_parent()
+
+
+func _add_city_row(parent: Node, meter: String) -> void:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	var head := HBoxContainer.new()
+	var name_label := _label(meter.capitalize(), 15)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var value_label := _label("", 15)
+	head.add_child(name_label)
+	head.add_child(value_label)
+	row.add_child(head)
 	var bar := ProgressBar.new()
 	bar.max_value = 100
-	bar.value = value
-	bar.custom_minimum_size = min_size
-	return bar
+	bar.value = GameState.get_value(meter)
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 12)
+	row.add_child(bar)
+	parent.add_child(row)
+	city_bars[meter] = bar
+	city_labels[meter] = value_label
 
 
-func _build_meters() -> void:
-	for meter in METERS:
-		var row := HBoxContainer.new()
-		var name_label := Label.new()
-		name_label.text = meter.capitalize()
-		name_label.custom_minimum_size.x = 130
-		var bar := _make_bar(GameState.get_value(meter), Vector2(300, 22))
-		row.add_child(name_label)
-		row.add_child(bar)
-		meters_container.add_child(row)
-		meter_bars[meter] = bar
-
-
-func _build_borough_grid() -> void:
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 12)
-	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	for header in ["", "Affordability", "Ridership", "Approval"]:
-		var h := Label.new()
-		h.text = header
-		grid.add_child(h)
+func _build_map_panel() -> Control:
+	var box := _make_panel("Boroughs (click one to target it)")
+	box.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var center := CenterContainer.new()
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(center)
+	var map := Control.new()
+	map.custom_minimum_size = Vector2(470, 340)
+	center.add_child(map)
 	for b in GameState.BOROUGHS:
-		var name_label := Label.new()
-		name_label.text = b
-		grid.add_child(name_label)
-		for stat in GameState.STATS:
-			var bar := _make_bar(GameState.get_value(stat, b), Vector2(110, 18))
-			grid.add_child(bar)
-			borough_bars["%s/%s" % [b, stat]] = bar
-	var vbox := meters_container.get_parent()
-	vbox.add_child(grid)
-	vbox.move_child(grid, meters_container.get_index() + 1)
+		var rect: Rect2 = MAP_LAYOUT[b]
+		var button := Button.new()
+		button.position = rect.position
+		button.size = rect.size
+		button.clip_text = true
+		button.add_theme_font_size_override("font_size", 14)
+		button.pressed.connect(_on_borough_pressed.bind(b))
+		map.add_child(button)
+		borough_buttons[b] = button
+	var hint := _label("Targeted cards hit the selected borough fully. The others get %d%%." % roundi(GameState.SPILLOVER * 100), 12, UITheme.MUTED)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(hint)
+	return box.get_parent()
 
 
-func _build_info_labels() -> void:
-	var vbox := meters_container.get_parent()
-	for label in [actions_label, policies_label, demands_label, log_label]:
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		vbox.add_child(label)
-	vbox.move_child(actions_label, 1)
-	policies_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.modulate = Color(1, 1, 1, 0.7)
+func _build_right_panel() -> Control:
+	var box := _make_panel("Demands", 330)
+	demands_box = VBoxContainer.new()
+	demands_box.add_theme_constant_override("separation", 8)
+	box.add_child(demands_box)
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(spacer)
+	box.add_child(_label("LOG", 12, UITheme.MUTED))
+	log_label = _label("", 13, UITheme.MUTED)
+	log_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(log_label)
+	return box.get_parent()
 
 
-func _build_target_picker() -> void:
-	var vbox := meters_container.get_parent()
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	var label := Label.new()
-	label.text = "Target borough:"
-	for b in GameState.BOROUGHS:
-		target_picker.add_item(b)
-	target_picker.item_selected.connect(_on_target_selected)
-	row.add_child(label)
-	row.add_child(target_picker)
-	vbox.add_child(row)
-	vbox.move_child(row, hand_container.get_index())
+func _build_hand_panel() -> Control:
+	var box := _make_panel("Your hand")
+	hand_box = HBoxContainer.new()
+	hand_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	hand_box.add_theme_constant_override("separation", 10)
+	box.add_child(hand_box)
+	return box.get_parent()
+
+
+func _build_dialogs() -> void:
+	event_dialog = ConfirmationDialog.new()
+	event_dialog.confirmed.connect(_on_event_choice.bind(true))
+	event_dialog.canceled.connect(_on_event_choice.bind(false))
+	add_child(event_dialog)
+	result_dialog = AcceptDialog.new()
+	result_dialog.confirmed.connect(_restart)
+	result_dialog.canceled.connect(_restart)
+	add_child(result_dialog)
 
 
 # -UI updates-
 
 func _update_ui() -> void:
-	turn_label.text = "Turn %d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS]
-	actions_label.text = "Actions left: %d / %d" % [GameState.actions_left, GameState.ACTIONS_PER_TURN]
-	_update_policies_label()
-	_update_demands_label()
-	_update_meters()
+	turn_label.text = "TURN %d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS]
+	budget_label.text = "Budget %d" % GameState.budget
+	var net := GameState.BASE_INCOME - _total_upkeep()
+	net_label.text = "Net %s / turn" % _signed_num(net)
+	net_label.add_theme_color_override("font_color", UITheme.GOOD if net >= 0 else UITheme.BAD)
+	actions_label.text = "Actions %d / %d" % [GameState.actions_left, GameState.ACTIONS_PER_TURN]
+	_update_city()
+	_update_boroughs()
+	_update_policies()
+	_update_demands()
 	if GameState.is_game_over() and not game_ended:
 		game_ended = true
 		end_turn_button.disabled = true
@@ -147,40 +259,95 @@ func _tween_bar(bar: ProgressBar, target: float) -> void:
 	tween.tween_property(bar, "modulate", Color.WHITE, 0.6)
 
 
-func _update_meters() -> void:
+func _update_city() -> void:
 	for meter in METERS:
-		_tween_bar(meter_bars[meter], GameState.get_value(meter))
-	for key in borough_bars:
-		var parts: PackedStringArray = key.split("/")
-		_tween_bar(borough_bars[key], GameState.get_value(parts[1], parts[0]))
+		var value := GameState.get_value(meter)
+		city_labels[meter].text = str(value)
+		_tween_bar(city_bars[meter], value)
 
 
-func _update_policies_label() -> void:
+func _update_boroughs() -> void:
+	var demand_counts := {}
+	for entry in GameState.active_demands:
+		var key: String = entry["borough"]
+		demand_counts[key] = demand_counts.get(key, 0) + 1
+	for b in GameState.BOROUGHS:
+		var button: Button = borough_buttons[b]
+		var approval := GameState.get_value("approval", b)
+		var label_text := "%s\nAfford %d  Ride %d\nApproval %d" % [
+			b, GameState.get_value("affordability", b), GameState.get_value("ridership", b), approval
+		]
+		var n: int = demand_counts.get(b, 0)
+		if n > 0:
+			label_text += "\n! %d demand%s" % [n, "" if n == 1 else "s"]
+		button.text = label_text
+		var base := UITheme.heat(approval)
+		var selected: bool = b == GameState.target_borough
+		var border := UITheme.ACCENT if selected else Color(0, 0, 0, 0)
+		var width := 4 if selected else 0
+		for state in ["normal", "hover", "pressed", "disabled"]:
+			var fill := base.lightened(0.12) if state == "hover" else base
+			button.add_theme_stylebox_override(state, UITheme.flat(fill, border, width, 10))
+
+
+func _update_policies() -> void:
+	_clear(policies_box)
 	if GameState.active_policies.is_empty():
-		policies_label.text = "Active policies: none"
+		policies_box.add_child(_label("None yet. Ongoing cards you enact show up here.", 13, UITheme.MUTED))
 		return
-	var parts: Array[String] = []
-	var total_upkeep := 0
 	for entry in GameState.active_policies:
 		var card: PolicyCard = entry["card"]
-		var where: String = "citywide" if entry["borough"] == "" else entry["borough"]
-		parts.append("%s [%s]" % [card.card_name, where])
-		total_upkeep += card.upkeep
-	policies_label.text = "Upkeep %d/turn (base income +%d)\nActive: %s" % [
-		total_upkeep, GameState.BASE_INCOME, ", ".join(parts)
-	]
+		var where: String = "Citywide" if entry["borough"] == "" else entry["borough"]
+		var money := ""
+		if card.upkeep >= 0:
+			money = "upkeep %d" % card.upkeep
+		else:
+			money = "income +%d" % -card.upkeep
+		var label := _label("%s\n%s | %s" % [card.card_name, where, money], 14)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		policies_box.add_child(label)
 
 
-func _update_demands_label() -> void:
+func _update_demands() -> void:
+	_clear(demands_box)
 	if GameState.active_demands.is_empty():
-		demands_label.text = "Demands: none"
+		demands_box.add_child(_label("No demands right now.", 13, UITheme.MUTED))
 		return
-	var lines: Array[String] = ["Demands:"]
 	for entry in GameState.active_demands:
 		var d: Demand = entry["demand"]
-		var where := "" if entry["borough"] == "" else " (%s)" % entry["borough"]
-		lines.append("%s%s: %s %d+ (%d turns left)" % [d.group_name, where, d.meter, d.threshold, entry["turns_left"]])
-	demands_label.text = "\n".join(lines)
+		var borough: String = entry["borough"]
+		var now := GameState.get_value(d.meter, borough)
+		var where := "citywide" if borough == "" else borough
+		var urgent: bool = entry["turns_left"] <= 1
+		var label := _label("%s | %s\n%s %d -> %d+   (%d turns left)" % [
+			d.group_name, where, d.meter.capitalize(), now, d.threshold, entry["turns_left"]
+		], 14, UITheme.BAD if urgent else UITheme.TEXT)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		demands_box.add_child(label)
+
+
+func _clear(node: Node) -> void:
+	for child in node.get_children():
+		node.remove_child(child)
+		child.queue_free()
+
+
+func _signed_num(n: int) -> String:
+	return ("+" if n > 0 else "") + str(n)
+
+
+func _total_upkeep() -> int:
+	var total := 0
+	for entry in GameState.active_policies:
+		var card: PolicyCard = entry["card"]
+		total += card.upkeep
+	return total
+
+
+func _on_borough_pressed(borough: String) -> void:
+	GameState.target_borough = borough
+	_update_boroughs()
+	_refresh_hand()
 
 
 # -Demands-
@@ -214,45 +381,108 @@ func _spawn_demand() -> void:
 
 # -Hand-
 
-func _on_target_selected(index: int) -> void:
-	GameState.target_borough = GameState.BOROUGHS[index]
-	_refresh_hand()
-
-
 func _draw_hand() -> void:
-	for child in hand_container.get_children():
-		child.queue_free()
+	_clear(hand_box)
 	var pool := deck.filter(func(c): return not (c.citywide and c.ongoing and GameState.is_active(c, "")))
 	pool.shuffle()
 	for card in pool.slice(0, HAND_SIZE):
-		_add_card_button(card)
+		_add_card(card)
 	_refresh_hand()
 
 
-func _add_card_button(card: PolicyCard) -> void:
-	var button := Button.new()
-	var label_text := "%s\ncost %d" % [card.card_name, card.cost]
+func _effect_parts(pairs: Array) -> String:
+	var parts: Array[String] = []
+	for pair in pairs:
+		var value: int = pair[1]
+		if value == 0:
+			continue
+		var col := "#6fdc8c" if value > 0 else "#ff6b6b"
+		parts.append("[color=%s]%s %s[/color]" % [col, _signed_num(value), pair[0]])
+	return ", ".join(parts)
+
+
+func _effects_bbcode(card: PolicyCard) -> String:
+	var lines: Array[String] = []
+	var now := _effect_parts([
+		["Budget", card.budget_change], ["Afford", card.affordability_change],
+		["Ridership", card.ridership_change], ["Approval", card.approval_change],
+	])
+	if now != "":
+		lines.append(now)
 	if card.ongoing:
-		label_text += " | upkeep %d" % card.upkeep
-	label_text += "\ncitywide" if card.citywide else "\ntargeted"
-	button.text = label_text
-	button.tooltip_text = card.description
-	button.set_meta("card", card)
-	button.pressed.connect(_on_card_pressed.bind(card, button))
-	hand_container.add_child(button)
+		var per := _effect_parts([
+			["Afford", card.per_turn_affordability], ["Ridership", card.per_turn_ridership],
+			["Approval", card.per_turn_approval], ["Budget", -card.upkeep],
+		])
+		lines.append("[color=#8b95ad]Each turn:[/color] " + per)
+	if lines.is_empty():
+		return "[color=#8b95ad]No direct effect[/color]"
+	return "\n".join(lines)
+
+
+func _add_card(card: PolicyCard) -> void:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(205, 0)
+	panel.tooltip_text = card.description
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	panel.add_child(box)
+
+	var title := _label(card.card_name, 16, UITheme.ACCENT)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(title)
+
+	var cost_text := "Cost %d" % card.cost
+	if card.ongoing:
+		cost_text += "  |  Ongoing"
+	box.add_child(_label(cost_text, 14))
+
+	var tag := _label("", 12, UITheme.MUTED)
+	box.add_child(tag)
+
+	var fx := RichTextLabel.new()
+	fx.bbcode_enabled = true
+	fx.fit_content = true
+	fx.scroll_active = false
+	fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx.text = _effects_bbcode(card)
+	box.add_child(fx)
+
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(spacer)
+
+	var button := Button.new()
+	button.text = "Enact"
+	button.pressed.connect(_on_card_pressed.bind(card, panel))
+	box.add_child(button)
+
+	panel.set_meta("card", card)
+	panel.set_meta("tag", tag)
+	panel.set_meta("button", button)
+	hand_box.add_child(panel)
 
 
 func _refresh_hand() -> void:
-	for button in hand_container.get_children():
-		if button.is_queued_for_deletion():
-			continue
-		var card: PolicyCard = button.get_meta("card")
-		button.disabled = button.get_meta("played", false) or not GameState.can_play(card, GameState.target_borough)
+	for panel in hand_box.get_children():
+		var card: PolicyCard = panel.get_meta("card")
+		var tag: Label = panel.get_meta("tag")
+		var button: Button = panel.get_meta("button")
+		var played: bool = panel.get_meta("played", false)
+		tag.text = "CITYWIDE" if card.citywide else "TARGET: " + GameState.target_borough.to_upper()
+		button.disabled = played or not GameState.can_play(card, GameState.target_borough)
+		if played:
+			button.text = "Enacted"
+		elif GameState.budget < card.cost:
+			button.text = "Need %d budget" % card.cost
+		else:
+			button.text = "Enact"
+		panel.modulate = Color(1, 1, 1, 0.55) if button.disabled else Color.WHITE
 
 
-func _on_card_pressed(card: PolicyCard, button: Button) -> void:
+func _on_card_pressed(card: PolicyCard, panel: PanelContainer) -> void:
 	if GameState.play_card(card, GameState.target_borough):
-		button.set_meta("played", true)
+		panel.set_meta("played", true)
 		_refresh_hand()
 
 
@@ -260,7 +490,7 @@ func _on_card_pressed(card: PolicyCard, button: Button) -> void:
 
 func _on_log_message(text: String) -> void:
 	log_lines.append(text)
-	if log_lines.size() > 4:
+	if log_lines.size() > 6:
 		log_lines.pop_front()
 	log_label.text = "\n".join(log_lines)
 
