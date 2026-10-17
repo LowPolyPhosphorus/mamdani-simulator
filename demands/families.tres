@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://cs27377uicaoo"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_nqsaf"]
+
+[resource]
+script = ExtResource("1_nqsaf")
+group_name = "Families"
+meter = "affordability"
+threshold = 58
+turns_to_meet = 3
+reward = 5
+penalty = -6
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"

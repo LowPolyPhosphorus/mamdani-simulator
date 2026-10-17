@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://csmmpt7kotlgp"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_d1kn0"]
+
+[resource]
+script = ExtResource("1_d1kn0")
+card_name = "Tenant Protection Office"
+cost = 12
+affordability_change = 8
+approval_change = 4
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

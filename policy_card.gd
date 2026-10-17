@@ -10,6 +10,11 @@ extends Resource
 @export var ridership_change: int = 0
 @export var approval_change: int = 0
 
+@export_group("Gatekeeper")
+@export_enum("None", "MTA", "Council", "Albany") var gatekeeper: String = "None"
+@export var gate_threshold: int = 50
+@export var attitude_change: int = 0
+
 @export_group("Ongoing")
 @export var ongoing: bool = false
 @export var upkeep: int = 0

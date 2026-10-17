@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://di8n5im55wsm8"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_5n7pf"]
+
+[resource]
+script = ExtResource("1_5n7pf")
+group_name = "Tenants Union"
+meter = "affordability"
+threshold = 70
+turns_to_meet = 6
+reward = 9
+penalty = -8
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"

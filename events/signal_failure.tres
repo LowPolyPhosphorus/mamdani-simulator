@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://c1lqbaalt6wan"]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_eamit"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_g7oql"]
+
+[sub_resource type="Resource" id="Resource_g7oql"]
+script = ExtResource("1_g7oql")
+choice_text = "Emergency repairs"
+budget_change = -10
+ridership_change = 6
+approval_change = 2
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_j042p"]
+script = ExtResource("1_g7oql")
+choice_text = "Wait it out"
+ridership_change = -10
+approval_change = -4
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_eamit")
+title = "Signal Failure"
+choice_a = SubResource("Resource_g7oql")
+choice_b = SubResource("Resource_j042p")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Demand" format=3 uid="uid://b18xuqsp4c8mf"]
+
+[ext_resource type="Script" uid="uid://cuexoxoxmntrq" path="res://demand.gd" id="1_t5diw"]
+
+[resource]
+script = ExtResource("1_t5diw")
+group_name = "Night Shift Workers"
+threshold = 62
+penalty = -6
+metadata/_custom_type_script = "uid://cuexoxoxmntrq"

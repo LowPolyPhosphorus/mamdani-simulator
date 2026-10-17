@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://vxv5dvacmnc3"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Free School Meals"
+cost = 18
+affordability_change = 10
+approval_change = 5
+gatekeeper = "Council"
+gate_threshold = 40
+ongoing = true
+upkeep = 3
+per_turn_affordability = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

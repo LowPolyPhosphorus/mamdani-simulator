@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://m5hklwq5eqx2"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_5qrfx"]
+
+[resource]
+script = ExtResource("1_5qrfx")
+card_name = "Hiring Freeze"
+cost = 0
+citywide = true
+budget_change = 8
+affordability_change = -2
+approval_change = -4
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

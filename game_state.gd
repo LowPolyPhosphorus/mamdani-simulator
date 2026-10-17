@@ -10,9 +10,12 @@ const BASE_INCOME := 10
 const LAPSE_APPROVAL_PENALTY := 8
 const SPILLOVER := 0.4
 const LOSE_APPROVAL := 15
+const GATE_WEAK_MARGIN := 15
+const ATTITUDE_DRIFT := 1
 const BOROUGHS := ["Bronx", "Brooklyn", "Manhattan", "Queens", "Staten Island"]
 const STATS := ["affordability", "ridership", "approval"]
 const DRIFT := {"affordability": -2, "ridership": -2, "approval": -1}
+const GATEKEEPERS := ["MTA", "Council", "Albany"]
 # Rough placeholder starting values. Change them freely.
 const START := {
 	"Bronx": {"affordability": 42, "ridership": 52, "approval": 50},
@@ -29,6 +32,7 @@ var target_borough: String = "Bronx"
 var stats := {}
 var active_policies: Array[Dictionary] = []
 var active_demands: Array[Dictionary] = []
+var attitudes := {"MTA": 50, "Council": 50, "Albany": 40}
 
 var affordability: int:
 	get:
@@ -43,6 +47,13 @@ var approval: int:
 		return city_average("approval")
 
 
+func change_attitude(body: String, amount: int) -> void:
+	if not attitudes.has(body):
+		return
+	attitudes[body] = clampi(attitudes[body] + amount, 0, 100)
+	meters_changed.emit()
+
+
 func _ready() -> void:
 	reset()
 
@@ -55,6 +66,7 @@ func reset() -> void:
 	stats = START.duplicate(true)
 	active_policies.clear()
 	active_demands.clear()
+	attitudes = {"MTA": 50, "Council": 50, "Albany": 40}
 
 
 func city_average(stat: String) -> int:
@@ -109,19 +121,49 @@ func can_play(card: PolicyCard, borough: String) -> bool:
 	return true
 
 
+func gate_status(card: PolicyCard) -> String:
+	if card.gatekeeper == "None":
+		return "pass"
+	var mood: int = attitudes[card.gatekeeper]
+	if mood >= card.gate_threshold:
+		return "pass"
+	if mood >= card.gate_threshold - GATE_WEAK_MARGIN:
+		return "weak"
+	return "blocked"
+
+
+func _drift_attitudes() -> void:
+	for body in GATEKEEPERS:
+		attitudes[body] = move_toward(attitudes[body], 50, ATTITUDE_DRIFT)
+
+
 func play_card(card: PolicyCard, borough: String) -> bool:
 	if not can_play(card, borough):
 		return false
 	var scope := _scope(card, borough)
+	var where := "citywide" if scope == "" else "in " + scope
+	var status := gate_status(card)
 	actions_left -= 1
+
+	if status == "blocked":
+		change_attitude(card.gatekeeper, -2)
+		log_message.emit("%s blocked %s. The action was wasted." % [card.gatekeeper, card.card_name])
+		meters_changed.emit()
+		return true
+
+	var mult := 0.5 if status == "weak" else 1.0
 	if card.ongoing:
 		active_policies.append({"card": card, "borough": scope})
 	_change("budget", -card.cost + card.budget_change)
-	_change("affordability", card.affordability_change, scope)
-	_change("ridership", card.ridership_change, scope)
-	_change("approval", card.approval_change, scope)
-	var where := "citywide" if scope == "" else "in " + scope
-	log_message.emit("Enacted %s %s." % [card.card_name, where])
+	_change("affordability", roundi(card.affordability_change * mult), scope)
+	_change("ridership", roundi(card.ridership_change * mult), scope)
+	_change("approval", roundi(card.approval_change * mult), scope)
+	if card.gatekeeper != "None":
+		change_attitude(card.gatekeeper, card.attitude_change)
+	if status == "weak":
+		log_message.emit("%s grudgingly passed %s %s. Only half the effect." % [card.gatekeeper, card.card_name, where])
+	else:
+		log_message.emit("Enacted %s %s." % [card.card_name, where])
 	meters_changed.emit()
 	return true
 
@@ -148,6 +190,7 @@ func end_turn() -> void:
 	_change("budget", BASE_INCOME)
 	for stat in STATS:
 		_change(stat, DRIFT[stat])
+	_drift_attitudes()
 	_run_ongoing_policies()
 	_resolve_demands()
 	turn_changed.emit()

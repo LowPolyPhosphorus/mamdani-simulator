@@ -31,6 +31,8 @@ var result_dialog: AcceptDialog
 
 var city_bars := {}
 var city_labels := {}
+var attitude_bars := {}
+var attitude_labels :={}
 var borough_buttons := {}
 var log_lines: Array[String] = []
 var current_event: GameEvent
@@ -61,12 +63,6 @@ func _ready() -> void:
 # -UI-
 
 func _build_layout() -> void:
-	var bg := ColorRect.new()
-	bg.color = UITheme.BG
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
@@ -140,6 +136,9 @@ func _build_left_panel() -> Control:
 	var box := _make_panel("Citywide", 290)
 	for meter in METERS:
 		_add_city_row(box, meter)
+	box.add_child(_label("GATEKEEPERS", 12, UITheme.MUTED))
+	for body in GameState.GATEKEEPERS:
+		_add_attitude_row(box, body)
 	box.add_child(_label("ACTIVE POLICIES", 12, UITheme.MUTED))
 	policies_box = VBoxContainer.new()
 	policies_box.add_theme_constant_override("separation", 6)
@@ -166,6 +165,33 @@ func _add_city_row(parent: Node, meter: String) -> void:
 	parent.add_child(row)
 	city_bars[meter] = bar
 	city_labels[meter] = value_label
+
+
+func _add_attitude_row(parent: Node, body: String) -> void:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	var head := HBoxContainer.new()
+	var name_label := _label(body, 15)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var value_label := _label("", 15)
+	head.add_child(name_label)
+	head.add_child(value_label)
+	row.add_child(head)
+	var bar := ProgressBar.new()
+	bar.max_value = 100
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 12)
+	row.add_child(bar)
+	parent.add_child(row)
+	attitude_bars[body] = bar
+	attitude_labels[body] = value_label
+
+
+func _update_attitudes() -> void:
+	for body in GameState.GATEKEEPERS:
+		var value: int = GameState.attitudes[body]
+		attitude_bars[body].value = value
+		attitude_labels[body].text = str(value)
 
 
 func _build_map_panel() -> Control:
@@ -239,6 +265,7 @@ func _update_ui() -> void:
 	net_label.add_theme_color_override("font_color", UITheme.GOOD if net >= 0 else UITheme.BAD)
 	actions_label.text = "Actions %d / %d" % [GameState.actions_left, GameState.ACTIONS_PER_TURN]
 	_update_city()
+	_update_attitudes()
 	_update_boroughs()
 	_update_policies()
 	_update_demands()
@@ -282,12 +309,6 @@ func _update_boroughs() -> void:
 			label_text += "\n! %d demand%s" % [n, "" if n == 1 else "s"]
 		button.text = label_text
 		var base := UITheme.heat(approval)
-		var selected: bool = b == GameState.target_borough
-		var border := UITheme.ACCENT if selected else Color(0, 0, 0, 0)
-		var width := 4 if selected else 0
-		for state in ["normal", "hover", "pressed", "disabled"]:
-			var fill := base.lightened(0.12) if state == "hover" else base
-			button.add_theme_stylebox_override(state, UITheme.flat(fill, border, width, 10))
 
 
 func _update_policies() -> void:
@@ -439,6 +460,9 @@ func _add_card(card: PolicyCard) -> void:
 
 	var tag := _label("", 12, UITheme.MUTED)
 	box.add_child(tag)
+	
+	var gate := _label("", 12, UITheme.MUTED)
+	box.add_child(gate)
 
 	var fx := RichTextLabel.new()
 	fx.bbcode_enabled = true
@@ -460,6 +484,7 @@ func _add_card(card: PolicyCard) -> void:
 	panel.set_meta("card", card)
 	panel.set_meta("tag", tag)
 	panel.set_meta("button", button)
+	panel.set_meta("gate", gate)
 	hand_box.add_child(panel)
 
 
@@ -468,6 +493,23 @@ func _refresh_hand() -> void:
 		var card: PolicyCard = panel.get_meta("card")
 		var tag: Label = panel.get_meta("tag")
 		var button: Button = panel.get_meta("button")
+		var gate: Label = panel.get_meta("gate")
+		if card.gatekeeper == "None":
+			gate.visible = false
+		else:
+			gate.visible = true
+			var mood: int = GameState.attitudes[card.gatekeeper]
+			var status := GameState.gate_status(card)
+			var note := "ready"
+			var col := UITheme.GOOD
+			if status == "weak":
+				note = "half effect"
+				col = UITheme.MID_FILL
+			elif status == "blocked":
+				note = "will be blocked"
+				col = UITheme.BAD
+			gate.text = "Needs %s %d+ (now %d): %s" % [card.gatekeeper, card.gate_threshold, mood, note]
+			gate.add_theme_color_override("font_color", col)
 		var played: bool = panel.get_meta("played", false)
 		tag.text = "CITYWIDE" if card.citywide else "TARGET: " + GameState.target_borough.to_upper()
 		button.disabled = played or not GameState.can_play(card, GameState.target_borough)

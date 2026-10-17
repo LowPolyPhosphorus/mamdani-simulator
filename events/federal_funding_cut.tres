@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://xcu17klndo2l"]
+
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_lcnnx"]
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="2_qoswt"]
+
+[sub_resource type="Resource" id="Resource_qoswt"]
+script = ExtResource("1_lcnnx")
+choice_text = "Backfill it"
+budget_change = -15
+approval_change = 3
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_duhjp"]
+script = ExtResource("1_lcnnx")
+choice_text = "Cut programs"
+budget_change = 5
+affordability_change = -6
+approval_change = -4
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("2_qoswt")
+title = "Federal Funding Cut"
+choice_a = SubResource("Resource_qoswt")
+choice_b = SubResource("Resource_duhjp")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

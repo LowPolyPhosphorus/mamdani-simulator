@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://dcq2msqj66kcm"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_psoh0"]
+
+[resource]
+script = ExtResource("1_psoh0")
+card_name = "Late-Night Subway Service"
+cost = 18
+ridership_change = 10
+approval_change = 4
+gatekeeper = "MTA"
+ongoing = true
+upkeep = 4
+per_turn_ridership = 2
+per_turn_approval = 1
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

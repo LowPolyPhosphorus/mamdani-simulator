@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://dhfse2v3ffmen"]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_grre6"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_jaqx2"]
+
+[sub_resource type="Resource" id="Resource_epsgy"]
+script = ExtResource("1_jaqx2")
+choice_text = "Open cooling centers"
+budget_change = -8
+approval_change = 5
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_8pehe"]
+script = ExtResource("1_jaqx2")
+choice_text = "Issue advisories only"
+affordability_change = -2
+approval_change = -5
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_grre6")
+title = "Heat Wave"
+choice_a = SubResource("Resource_epsgy")
+choice_b = SubResource("Resource_8pehe")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

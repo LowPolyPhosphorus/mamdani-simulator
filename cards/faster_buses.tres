@@ -8,4 +8,6 @@ card_name = "Faster Buses"
 cost = 12
 ridership_change = 10
 approval_change = 2
+gatekeeper = "MTA"
+gate_threshold = 40
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

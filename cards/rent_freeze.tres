@@ -9,6 +9,7 @@ cost = 30
 citywide = true
 ridership_change = 20
 approval_change = 10
+gatekeeper = "Albany"
 ongoing = true
 upkeep = 2
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

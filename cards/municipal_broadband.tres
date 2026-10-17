@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://1osk25aemujb"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_lv7s6"]
+
+[resource]
+script = ExtResource("1_lv7s6")
+card_name = "Municipal Broadband"
+cost = 25
+affordability_change = 8
+approval_change = 6
+ongoing = true
+per_turn_affordability = 1
+per_turn_approval = 1
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

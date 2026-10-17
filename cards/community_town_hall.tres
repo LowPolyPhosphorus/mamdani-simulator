@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://g6aqko3it43n"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_knsdr"]
+
+[resource]
+script = ExtResource("1_knsdr")
+card_name = "Community Town Hall"
+cost = 4
+approval_change = 8
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"
