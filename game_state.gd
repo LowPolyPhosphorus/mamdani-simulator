@@ -12,6 +12,19 @@ const SPILLOVER := 0.4
 const LOSE_APPROVAL := 15
 const GATE_WEAK_MARGIN := 15
 const ATTITUDE_DRIFT := 1
+const LOBBY_COST := 5
+const LOBBY_GAIN := 8
+const ISSUE_CHANCE := 0.4
+const MAX_ISSUES := 3
+const ISSUE_DRAIN := 3
+const ISSUE_ESCALATE_TURNS := 3
+const ISSUE_PENALTY := 6
+const ISSUES := [
+	{"name": "Overcrowded buses", "meter": "ridership"},
+	{"name": "Eviction wave", "meter": "affordability"},
+	{"name": "Food desert", "meter": "affordability"},
+	{"name": "Service complaints", "meter": "approval"},
+]
 const BOROUGHS := ["Bronx", "Brooklyn", "Manhattan", "Queens", "Staten Island"]
 const STATS := ["affordability", "ridership", "approval"]
 const DRIFT := {"affordability": -2, "ridership": -2, "approval": -1}
@@ -32,6 +45,7 @@ var target_borough: String = "Bronx"
 var stats := {}
 var active_policies: Array[Dictionary] = []
 var active_demands: Array[Dictionary] = []
+var active_issues: Array[Dictionary] = []
 var attitudes := {"MTA": 50, "Council": 50, "Albany": 40}
 
 var affordability: int:
@@ -67,6 +81,7 @@ func reset() -> void:
 	active_policies.clear()
 	active_demands.clear()
 	attitudes = {"MTA": 50, "Council": 50, "Albany": 40}
+	active_issues.clear()
 
 
 func city_average(stat: String) -> int:
@@ -137,6 +152,20 @@ func _drift_attitudes() -> void:
 		attitudes[body] = move_toward(attitudes[body], 50, ATTITUDE_DRIFT)
 
 
+func can_lobby() -> bool:
+	return actions_left > 0 and budget >= LOBBY_COST and not is_game_over()
+
+
+func lobby(body: String) -> void:
+	if not can_lobby():
+		return
+	actions_left -= 1
+	_change("budget", -LOBBY_COST)
+	change_attitude(body, LOBBY_GAIN)
+	log_message.emit("Lobbied the %s (+%d attitude)." % [body, LOBBY_GAIN])
+	meters_changed.emit()
+
+
 func play_card(card: PolicyCard, borough: String) -> bool:
 	if not can_play(card, borough):
 		return false
@@ -158,6 +187,7 @@ func play_card(card: PolicyCard, borough: String) -> bool:
 	_change("affordability", roundi(card.affordability_change * mult), scope)
 	_change("ridership", roundi(card.ridership_change * mult), scope)
 	_change("approval", roundi(card.approval_change * mult), scope)
+	_fix_issues(card, scope)
 	if card.gatekeeper != "None":
 		change_attitude(card.gatekeeper, card.attitude_change)
 	if status == "weak":
@@ -184,6 +214,38 @@ func add_demand(demand: Demand, borough: String) -> void:
 	])
 
 
+func _spawn_issue() -> void:
+	if active_issues.size() >= MAX_ISSUES or randf() > ISSUE_CHANCE:
+		return
+	var b: String = BOROUGHS.pick_random()
+	var template: Dictionary = ISSUES.pick_random()
+	for entry in active_issues:
+		if entry["borough"] == b and entry["name"] == template["name"]:
+			return
+	active_issues.append({"name": template["name"], "meter": template["meter"], "borough": b, "age": 0})
+	log_message.emit("New issue in %s: %s." % [b, template["name"]])
+
+
+func _run_issues() -> void:
+	for entry in active_issues:
+		var b: String = entry["borough"]
+		var m: String = entry["meter"]
+		entry["age"] += 1
+		stats[b][m] = clampi(stats[b][m] - ISSUE_DRAIN, 0, 100)
+		if entry ["age"] == ISSUE_ESCALATE_TURNS:
+			stats[b]["approval"] = clampi(stats[b]["approval"] - ISSUE_PENALTY, 0, 100)
+			log_message.emit("%s is angry about %s (-%d approval)." % [b, entry["name"], ISSUE_PENALTY])
+
+func _fix_issues(card: PolicyCard, scope: String) -> void:
+	for entry in active_issues.duplicate():
+		if scope != "" and entry["borough"] != scope:
+			continue
+		var gain: int = card.get(entry["meter"] + "_change")
+		if gain > 0:
+			active_issues.erase(entry)
+			log_message.emit("Fixed %s in %s." % [entry["name"], entry["borough"]])
+
+
 func end_turn() -> void:
 	turn += 1
 	actions_left = ACTIONS_PER_TURN
@@ -193,6 +255,8 @@ func end_turn() -> void:
 	_drift_attitudes()
 	_run_ongoing_policies()
 	_resolve_demands()
+	_run_issues()
+	_spawn_issue()
 	turn_changed.emit()
 
 

@@ -21,10 +21,11 @@ var turn_label: Label
 var budget_label: Label
 var net_label: Label
 var actions_label: Label
+var log_label: Label
 var end_turn_button: Button
 var policies_box: VBoxContainer
 var demands_box: VBoxContainer
-var log_label: Label
+var issues_box: VBoxContainer
 var hand_box: HBoxContainer
 var event_dialog: ConfirmationDialog
 var result_dialog: AcceptDialog
@@ -37,7 +38,7 @@ var borough_buttons := {}
 var log_lines: Array[String] = []
 var current_event: GameEvent
 var game_ended := false
-
+var lobby_buttons := {}
 
 func _ready() -> void:
 	for child in get_children():
@@ -142,7 +143,7 @@ func _build_left_panel() -> Control:
 	box.add_child(_label("ACTIVE POLICIES", 12, UITheme.MUTED))
 	policies_box = VBoxContainer.new()
 	policies_box.add_theme_constant_override("separation", 6)
-	box.add_child(policies_box)
+	box.add_child(_scroll_wrap(policies_box))
 	return box.get_parent()
 
 
@@ -176,6 +177,12 @@ func _add_attitude_row(parent: Node, body: String) -> void:
 	var value_label := _label("", 15)
 	head.add_child(name_label)
 	head.add_child(value_label)
+	var lobby_button := Button.new()
+	lobby_button.text = "Lobby"
+	lobby_button.tooltip_text = "Costs 1 action and %d budget. Raises their attitude by %d." % [GameState.LOBBY_COST, GameState.LOBBY_GAIN]
+	lobby_button.pressed.connect(func(): GameState.lobby(body))
+	head.add_child(lobby_button)
+	lobby_buttons[body] = lobby_button
 	row.add_child(head)
 	var bar := ProgressBar.new()
 	bar.max_value = 100
@@ -192,6 +199,7 @@ func _update_attitudes() -> void:
 		var value: int = GameState.attitudes[body]
 		attitude_bars[body].value = value
 		attitude_labels[body].text = str(value)
+		lobby_buttons[body].disabled = not GameState.can_lobby()
 
 
 func _build_map_panel() -> Control:
@@ -223,10 +231,11 @@ func _build_right_panel() -> Control:
 	var box := _make_panel("Demands", 330)
 	demands_box = VBoxContainer.new()
 	demands_box.add_theme_constant_override("separation", 8)
-	box.add_child(demands_box)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(spacer)
+	box.add_child(_scroll_wrap(demands_box))
+	box.add_child(_label("BOROUGH ISSUES", 12, UITheme.MUTED))
+	issues_box = VBoxContainer.new()
+	issues_box.add_theme_constant_override("separation", 6)
+	box.add_child(_scroll_wrap(issues_box))
 	box.add_child(_label("LOG", 12, UITheme.MUTED))
 	log_label = _label("", 13, UITheme.MUTED)
 	log_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
@@ -269,6 +278,7 @@ func _update_ui() -> void:
 	_update_boroughs()
 	_update_policies()
 	_update_demands()
+	_update_issues()
 	if GameState.is_game_over() and not game_ended:
 		game_ended = true
 		end_turn_button.disabled = true
@@ -309,6 +319,10 @@ func _update_boroughs() -> void:
 			label_text += "\n! %d demand%s" % [n, "" if n == 1 else "s"]
 		button.text = label_text
 		var base := UITheme.heat(approval)
+		var selected: bool = b == GameState.target_borough
+		for state in ["normal", "hover", "pressed", "disabled"]:
+			var fill := base.lightened(0.12) if state == "hover" else base
+			button.add_theme_stylebox_override(state, UITheme.tile(fill, selected))
 
 
 func _update_policies() -> void:
@@ -346,11 +360,32 @@ func _update_demands() -> void:
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		demands_box.add_child(label)
 
+func _update_issues() -> void:
+	_clear(issues_box)
+	if GameState.active_issues.is_empty():
+		issues_box.add_child(_label("No issues right now.", 13, UITheme.MUTED))
+		return
+	for entry in GameState.active_issues:
+		var urgent: bool = entry["age"] >= GameState.ISSUE_ESCALATE_TURNS - 1
+		var label := _label("%s | %s\n%s -%d/turn (%d turns old)" % [
+			entry["borough"], entry["name"], entry["meter"].capitalize(), GameState.ISSUE_DRAIN, entry["age"]
+		], 14, UITheme.BAD if urgent else UITheme.TEXT)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		issues_box.add_child(label)
 
 func _clear(node: Node) -> void:
 	for child in node.get_children():
 		node.remove_child(child)
 		child.queue_free()
+
+
+func _scroll_wrap(content: Control) -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+	return scroll
 
 
 func _signed_num(n: int) -> String:
