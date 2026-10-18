@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://5yt1n5blswgi"]
+
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_04o8v"]
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_bgbps"]
+
+[sub_resource type="Resource" id="Resource_04o8v"]
+script = ExtResource("1_04o8v")
+choice_text = "Fund the fair"
+budget_change = -5
+approval_change = 6
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_som5v"]
+script = ExtResource("1_04o8v")
+choice_text = "Cut the fair"
+approval_change = -5
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_bgbps")
+title = "Street Fair Funding Fight"
+description = "Organizers of a long-running street fair say they can’t afford the permit costs this year, and local businesses are weighing in."
+choice_a = SubResource("Resource_04o8v")
+choice_b = SubResource("Resource_som5v")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

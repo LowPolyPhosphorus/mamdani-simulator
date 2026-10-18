@@ -21,6 +21,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("2_qoswt")
 title = "Federal Funding Cut"
+description = "A federal grant the city counted on has been reduced. Programs that depended on it are now at risk."
 choice_a = SubResource("Resource_qoswt")
 choice_b = SubResource("Resource_duhjp")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

@@ -21,3 +21,7 @@ extends Resource
 @export var per_turn_affordability: int = 0
 @export var per_turn_ridership: int = 0
 @export var per_turn_approval: int = 0
+
+@export_group("Synergy")
+@export var synergy_with: String = ""
+@export var synergy_bonus: int = 5

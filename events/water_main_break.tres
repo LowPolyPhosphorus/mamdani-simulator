@@ -19,6 +19,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("2_l680w")
 title = "Tourism Boom"
+description = "A water main has burst and flooded a busy street, cutting off service to nearby blocks. Crews are waiting on an order."
 choice_a = SubResource("Resource_qov7n")
 choice_b = SubResource("Resource_ehybq")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://dntycvnus8mh2"]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_kj2xw"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_on2ji"]
+
+[sub_resource type="Resource" id="Resource_on2ji"]
+script = ExtResource("1_on2ji")
+choice_text = "Pump and repair"
+budget_change = -10
+ridership_change = 6
+approval_change = 3
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_u4vxk"]
+script = ExtResource("1_on2ji")
+choice_text = "Reroute riders"
+ridership_change = -8
+approval_change = -3
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_kj2xw")
+title = "Subway Flooding"
+description = "Heavy rain has flooded several Brooklyn stations. Service is suspended, and riders are crowding the surface streets."
+choice_a = SubResource("Resource_on2ji")
+choice_b = SubResource("Resource_u4vxk")
+borough = "Brooklyn"
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

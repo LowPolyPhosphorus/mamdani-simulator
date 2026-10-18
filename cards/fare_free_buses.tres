@@ -15,4 +15,5 @@ ongoing = true
 upkeep = 6
 per_turn_ridership = 4
 per_turn_approval = 1
+synergy_with = "Late-Night Subway Service"
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

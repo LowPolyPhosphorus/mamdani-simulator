@@ -9,4 +9,5 @@ affordability_change = 10
 approval_change = 3
 gatekeeper = "MTA"
 gate_threshold = 40
+synergy_with = "Fare-Free Buses"
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

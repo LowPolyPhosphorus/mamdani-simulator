@@ -166,6 +166,15 @@ func lobby(body: String) -> void:
 	meters_changed.emit()
 
 
+func has_active_named(card_name: String, scope: String) -> bool:
+	for entry in active_policies:
+		if entry["card"].card_name != card_name:
+			continue
+		if scope == "" or entry["borough"] == "" or entry["borough"] == scope:
+			return true
+	return false
+
+
 func play_card(card: PolicyCard, borough: String) -> bool:
 	if not can_play(card, borough):
 		return false
@@ -188,6 +197,9 @@ func play_card(card: PolicyCard, borough: String) -> bool:
 	_change("ridership", roundi(card.ridership_change * mult), scope)
 	_change("approval", roundi(card.approval_change * mult), scope)
 	_fix_issues(card, scope)
+	if card.synergy_with != "" and has_active_named(card.synergy_with, scope):
+		_change("approval", card.synergy_bonus, scope)
+		log_message.emit("Synergy with %s: +%d approval." % [card.synergy_with, card.synergy_bonus])
 	if card.gatekeeper != "None":
 		change_attitude(card.gatekeeper, card.attitude_change)
 	if status == "weak":
@@ -198,11 +210,11 @@ func play_card(card: PolicyCard, borough: String) -> bool:
 	return true
 
 
-func apply_choice(choice: EventChoice) -> void:
+func apply_choice(choice: EventChoice, borough: String = "") -> void:
 	_change("budget", choice.budget_change)
-	_change("affordability", choice.affordability_change)
-	_change("ridership", choice.ridership_change)
-	_change("approval", choice.approval_change)
+	_change("affordability", choice.affordability_change, borough)
+	_change("ridership", choice.ridership_change, borough)
+	_change("approval", choice.approval_change, borough)
 	meters_changed.emit()
 
 

@@ -16,4 +16,5 @@ upkeep = 5
 per_turn_affordability = 2
 per_turn_ridership = 1
 per_turn_approval = 1
+synergy_with = "Rent Freeze"
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

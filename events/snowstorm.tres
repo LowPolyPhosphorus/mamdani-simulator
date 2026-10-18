@@ -19,7 +19,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("1_geg8i")
 title = "Snowstorm"
-description = "snow. it stormed."
+description = "A heavy storm is burying the city overnight. Plows are stretched thin, and commuters are asking what City Hall plans to do."
 choice_a = SubResource("Resource_iv3h0")
 choice_b = SubResource("Resource_s6h17")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

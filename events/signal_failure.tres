@@ -21,6 +21,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("1_eamit")
 title = "Signal Failure"
+description = "A major signal failure has stalled trains across several lines. Riders are stuck on platforms and the delays are getting worse."
 choice_a = SubResource("Resource_g7oql")
 choice_b = SubResource("Resource_j042p")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

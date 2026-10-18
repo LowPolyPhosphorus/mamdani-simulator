@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://is1rbihjqn4j"]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_qiekr"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_vihua"]
+
+[sub_resource type="Resource" id="Resource_vihua"]
+script = ExtResource("1_vihua")
+choice_text = "Charter buses"
+budget_change = -8
+ridership_change = 8
+approval_change = 8
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[sub_resource type="Resource" id="Resource_56t4o"]
+script = ExtResource("1_vihua")
+choice_text = "Wait for repairs"
+ridership_change = -12
+approval_change = -6
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+
+[resource]
+script = ExtResource("1_qiekr")
+title = "Ferry Outage"
+description = "The ferry is out of service after a mechanical failure, and thousands of commuters have no easy way across the harbor."
+choice_a = SubResource("Resource_vihua")
+choice_b = SubResource("Resource_56t4o")
+borough = "Staten Island"
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"

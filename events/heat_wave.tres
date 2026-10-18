@@ -20,6 +20,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("1_grre6")
 title = "Heat Wave"
+description = "Temperatures are climbing past 100 and the power grid is strained. Seniors and outdoor workers are the most at risk."
 choice_a = SubResource("Resource_epsgy")
 choice_b = SubResource("Resource_8pehe")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

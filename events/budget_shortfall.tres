@@ -20,7 +20,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("1_m2uty")
 title = "Budget Shortfall"
-description = "durr"
+description = "Tax revenue came in lower than projected, and the finance office says the books won’t balance this quarter. Something has to give."
 choice_a = SubResource("Resource_ytoc8")
 choice_b = SubResource("Resource_xvxbh")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

@@ -8,4 +8,5 @@ card_name = "Tenant Protection Office"
 cost = 12
 affordability_change = 8
 approval_change = 4
+synergy_with = "Rent Freeze"
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

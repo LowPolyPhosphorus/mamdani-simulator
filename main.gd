@@ -21,11 +21,11 @@ var turn_label: Label
 var budget_label: Label
 var net_label: Label
 var actions_label: Label
-var log_label: Label
 var end_turn_button: Button
 var policies_box: VBoxContainer
 var demands_box: VBoxContainer
 var issues_box: VBoxContainer
+var log_label: Label
 var hand_box: HBoxContainer
 var event_dialog: ConfirmationDialog
 var result_dialog: AcceptDialog
@@ -33,12 +33,13 @@ var result_dialog: AcceptDialog
 var city_bars := {}
 var city_labels := {}
 var attitude_bars := {}
-var attitude_labels :={}
+var attitude_labels := {}
+var lobby_buttons := {}
 var borough_buttons := {}
 var log_lines: Array[String] = []
 var current_event: GameEvent
 var game_ended := false
-var lobby_buttons := {}
+
 
 func _ready() -> void:
 	for child in get_children():
@@ -360,6 +361,7 @@ func _update_demands() -> void:
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		demands_box.add_child(label)
 
+
 func _update_issues() -> void:
 	_clear(issues_box)
 	if GameState.active_issues.is_empty():
@@ -372,6 +374,7 @@ func _update_issues() -> void:
 		], 14, UITheme.BAD if urgent else UITheme.TEXT)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		issues_box.add_child(label)
+
 
 func _clear(node: Node) -> void:
 	for child in node.get_children():
@@ -471,6 +474,8 @@ func _effects_bbcode(card: PolicyCard) -> String:
 			["Approval", card.per_turn_approval], ["Budget", -card.upkeep],
 		])
 		lines.append("[color=#8b95ad]Each turn:[/color] " + per)
+	if card.synergy_with != "":
+		lines.append("Synergy: %s (+%d approval)" % [card.synergy_with, card.synergy_bonus])
 	if lines.is_empty():
 		return "[color=#8b95ad]No direct effect[/color]"
 	return "\n".join(lines)
@@ -478,7 +483,7 @@ func _effects_bbcode(card: PolicyCard) -> String:
 
 func _add_card(card: PolicyCard) -> void:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(205, 0)
+	panel.custom_minimum_size = Vector2(225, 0)
 	panel.tooltip_text = card.description
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
@@ -495,8 +500,9 @@ func _add_card(card: PolicyCard) -> void:
 
 	var tag := _label("", 12, UITheme.MUTED)
 	box.add_child(tag)
-	
+
 	var gate := _label("", 12, UITheme.MUTED)
+	gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(gate)
 
 	var fx := RichTextLabel.new()
@@ -576,7 +582,7 @@ func _maybe_trigger_event() -> void:
 	if events.is_empty() or GameState.is_game_over() or randf() > EVENT_CHANCE:
 		return
 	current_event = events.pick_random()
-	event_dialog.title = current_event.title
+	event_dialog.title = current_event.title if current_event.borough == "Any" else "%s: %s" % [current_event.borough, current_event.title]
 	event_dialog.dialog_text = current_event.description
 	event_dialog.ok_button_text = current_event.choice_a.choice_text
 	event_dialog.cancel_button_text = current_event.choice_b.choice_text
@@ -584,7 +590,8 @@ func _maybe_trigger_event() -> void:
 
 
 func _on_event_choice(chose_a: bool) -> void:
-	GameState.apply_choice(current_event.choice_a if chose_a else current_event.choice_b)
+	var where := "" if current_event.borough == "Any" else current_event.borough
+	GameState.apply_choice(current_event.choice_a if chose_a else current_event.choice_b, where)
 
 
 func _restart() -> void:

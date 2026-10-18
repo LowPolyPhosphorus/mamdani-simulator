@@ -21,7 +21,7 @@ metadata/_custom_type_script = "uid://kx23jnysoxoj"
 [resource]
 script = ExtResource("1_4p0nl")
 title = "Transit Strike"
-description = "gah!"
+description = "Transit workers have walked off the job over pay and staffing. Stations are packed and the morning commute is chaos."
 choice_a = SubResource("Resource_w6cto")
 choice_b = SubResource("Resource_r3c3k")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"

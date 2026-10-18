@@ -13,4 +13,5 @@ gate_threshold = 40
 ongoing = true
 upkeep = 3
 per_turn_affordability = 2
+synergy_with = "Universal Childcare"
 metadata/_custom_type_script = "uid://cbvjohpu8a0nq"
