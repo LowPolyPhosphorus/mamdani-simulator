@@ -3,7 +3,7 @@
 a turn-based nyc city management game made in godot 4
 its really bad 
 
-play it: htts://mamdani-simulator.lowpolyphosphor.us
+play it: https://mamdani-simulator.lowpolyphosphor.us
 
 ## how it works
 
