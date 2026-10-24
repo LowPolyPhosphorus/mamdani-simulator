@@ -14,4 +14,4 @@ play it: https://mamdani-simulator.lowpolyphosphor.us
 - demands, events, and borough issues come up each turn
 
 ## license
-its mit i think 
+MIT [LICENSE](/LICENSE)
