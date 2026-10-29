@@ -278,6 +278,8 @@ func _build_hand_panel() -> Control:
 
 func _build_dialogs() -> void:
 	event_dialog = ConfirmationDialog.new()
+	event_dialog.borderless = true
+	event_dialog.dialog_close_on_escape = false
 	event_dialog.confirmed.connect(_on_event_choice.bind(true))
 	event_dialog.canceled.connect(_on_event_choice.bind(false))
 	add_child(event_dialog)
