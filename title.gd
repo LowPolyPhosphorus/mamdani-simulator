@@ -11,7 +11,7 @@ func _ready() -> void:
 	add_child(center)
 	
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("seperation", 16)
+	box.add_theme_constant_override("separation", 16)
 	center.add_child(box)
 	
 	var title := Label.new()
@@ -20,10 +20,11 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	
-	var start := Button.new()
-	start.text = "Start Term"
-	start.pressed.connect(_on_start_pressed)
-	box.add_child(start)
+	for o in [["Easy", "easy"], ["Normal", "normal"], ["Hard", "hard"]]:
+		var b := Button.new()
+		b.text = "Start Term: " + o[0]
+		b.pressed.connect(_start.bind(o[1]))
+		box.add_child(b)
 	
 	var quit := Button.new()
 	quit.text = "Quit"
@@ -35,7 +36,8 @@ func _ready() -> void:
 	disclaimer.modulate = Color(1, 1, 1, 0.6)
 	disclaimer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(disclaimer)
-
-
-func _on_start_pressed() -> void:
+	
+func _start(d: String) -> void:
+	GameState.set_difficulty(d)
+	GameState.reset()
 	get_tree().change_scene_to_file(GAME_SCENE)

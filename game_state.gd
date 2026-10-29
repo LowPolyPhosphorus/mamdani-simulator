@@ -5,11 +5,6 @@ signal meters_changed
 signal log_message(text: String)
 
 const MAX_TURNS := 24
-const ACTIONS_PER_TURN := 2
-const BASE_INCOME := 10
-const LAPSE_APPROVAL_PENALTY := 8
-const SPILLOVER := 0.4
-const LOSE_APPROVAL := 15
 const GATE_WEAK_MARGIN := 15
 const ATTITUDE_DRIFT := 1
 const LOBBY_COST := 5
@@ -27,7 +22,6 @@ const ISSUES := [
 ]
 const BOROUGHS := ["Bronx", "Brooklyn", "Manhattan", "Queens", "Staten Island"]
 const STATS := ["affordability", "ridership", "approval"]
-const DRIFT := {"affordability": -2, "ridership": -2, "approval": -1}
 const GATEKEEPERS := ["MTA", "Council", "Albany"]
 # Rough placeholder starting values. Change them freely.
 const START := {
@@ -37,10 +31,34 @@ const START := {
 	"Queens": {"affordability": 50, "ridership": 48, "approval": 50},
 	"Staten Island": {"affordability": 55, "ridership": 34, "approval": 46},
 }
+const PRESETS := {
+	"easy": {
+		"actions": 3, "income": 12, "drift_aff": 1, "drift_rid": 1, "drift_app": 0,
+		"spillover": 0.6, "lose_approval": 10, "lapse_penalty": 4,
+		"event_chance": 0.35, "demand_chance": 0.5, "max_demands": 2, "issue_chance": 0.15,
+	},
+	"normal": {
+		"actions": 2, "income": 10, "drift_aff": 2, "drift_rid": 2, "drift_app": 1,
+		"spillover": 0.4, "lose_approval": 15, "lapse_penalty": 8,
+		"event_chance": 0.5, "demand_chance": 0.7, "max_demands": 3, "issue_chance": 0.3,
+	},
+	"hard": {
+		"actions": 2, "income": 8, "drift_aff": 3, "drift_rid": 2, "drift_app": 1,
+		"spillover": 0.3, "lose_approval": 20, "lapse_penalty": 10,
+		"event_chance": 0.6, "demand_chance": 0.8, "max_demands": 4, "issue_chance": 0.4,
+	},
+}
+
+var difficulty: String = "normal"
+var cfg: Dictionary = PRESETS["normal"]
+
+func set_difficulty(d: String) -> void:
+	difficulty = d
+	cfg = PRESETS[d]
 
 var turn: int = 1
 var budget: int = 50
-var actions_left: int = ACTIONS_PER_TURN
+var actions_left: int = cfg["actions"]
 var target_borough: String = "Bronx"
 var stats := {}
 var active_policies: Array[Dictionary] = []
@@ -61,6 +79,15 @@ var approval: int:
 		return city_average("approval")
 
 
+func _drift(stat: String) -> int:
+	match stat:
+		"affordability":
+			return -cfg["drift_aff"]
+		"ridership":
+			return -cfg["drift_rid"]
+		_:
+			return -cfg["drift_app"]
+
 func change_attitude(body: String, amount: int) -> void:
 	if not attitudes.has(body):
 		return
@@ -75,7 +102,7 @@ func _ready() -> void:
 func reset() -> void:
 	turn = 1
 	budget = 50
-	actions_left = ACTIONS_PER_TURN
+	actions_left = cfg["actions"]
 	target_borough = BOROUGHS[0]
 	stats = START.duplicate(true)
 	active_policies.clear()
@@ -100,7 +127,7 @@ func get_value(meter: String, borough: String = "") -> int:
 
 
 # The one place meters change. A named borough gets the full amount and the
-# others get SPILLOVER of it. An empty borough means every borough gets it all.
+# others get cfg["spillover"] of it. An empty borough means every borough gets it all.
 func _change(meter: String, amount: int, borough: String = "") -> void:
 	if meter == "budget":
 		budget = clampi(budget + amount, 0, 100)
@@ -108,7 +135,7 @@ func _change(meter: String, amount: int, borough: String = "") -> void:
 	for b in BOROUGHS:
 		var share := 1.0
 		if borough != "" and b != borough:
-			share = SPILLOVER
+			share = cfg["spillover"]
 		stats[b][meter] = clampi(stats[b][meter] + roundi(amount * share), 0, 100)
 
 
@@ -257,13 +284,22 @@ func _fix_issues(card: PolicyCard, scope: String) -> void:
 			active_issues.erase(entry)
 			log_message.emit("Fixed %s in %s." % [entry["name"], entry["borough"]])
 
+func neediest_borough() -> String:
+	var worst := ""
+	var worst_score := 999.0
+	for b in stats.keys():
+		var s: float = (stats[b]["affordability"] + stats[b]["ridership"] + stats[b]["approval"]) / 3.0
+		if s < worst_score:
+			worst_score = s
+			worst = b
+	return worst
 
 func end_turn() -> void:
 	turn += 1
-	actions_left = ACTIONS_PER_TURN
-	_change("budget", BASE_INCOME)
+	actions_left = cfg["actions"]
+	_change("budget", cfg["income"])
 	for stat in STATS:
-		_change(stat, DRIFT[stat])
+		_change(stat, _drift(stat))
 	_drift_attitudes()
 	_run_ongoing_policies()
 	_resolve_demands()
@@ -278,7 +314,7 @@ func _run_ongoing_policies() -> void:
 		var borough: String = entry["borough"]
 		if card.upkeep > 0 and budget < card.upkeep:
 			active_policies.erase(entry)
-			_change("approval", -LAPSE_APPROVAL_PENALTY, borough)
+			_change("approval", -cfg["lapse_penalty"], borough)
 			log_message.emit("Couldn't fund %s. It lapsed and approval fell." % card.card_name)
 			continue
 		_change("budget", -card.upkeep)
@@ -308,7 +344,7 @@ func is_term_over() -> bool:
 
 
 func is_game_over() -> bool:
-	return approval <= LOSE_APPROVAL or is_term_over()
+	return approval <= cfg["lose_approval"] or is_term_over()
 
 
 func boroughs_carried() -> int:
@@ -320,7 +356,7 @@ func boroughs_carried() -> int:
 
 
 func get_ending() -> String:
-	if approval <= LOSE_APPROVAL:
+	if approval <= cfg["lose_approval"]:
 		return "Voted out. Citywide approval collapsed."
 	var avg: int = roundi((affordability + ridership + approval) / 3.0)
 	var carried := "You carried %d of %d boroughs." % [boroughs_carried(), BOROUGHS.size()]

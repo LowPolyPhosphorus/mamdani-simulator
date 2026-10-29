@@ -1,6 +1,7 @@
 extends Control
 
 const HAND_SIZE := 5
+const LOW_THRESHOLD := 30
 const EVENT_CHANCE := 0.5
 const MAX_DEMANDS := 3
 const DEMAND_CHANCE := 0.7
@@ -39,6 +40,7 @@ var borough_buttons := {}
 var log_lines: Array[String] = []
 var current_event: GameEvent
 var game_ended := false
+var auto_target := false
 
 
 func _ready() -> void:
@@ -49,6 +51,7 @@ func _ready() -> void:
 	_build_layout()
 	_build_dialogs()
 	end_turn_button.pressed.connect(GameState.end_turn)
+	GameState.turn_changed.connect(_apply_auto_target)
 	GameState.turn_changed.connect(_spawn_demand)
 	GameState.turn_changed.connect(_update_ui)
 	GameState.meters_changed.connect(_update_ui)
@@ -127,6 +130,13 @@ func _build_top_bar() -> Control:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 
+	var needy_button := Button.new()
+	needy_button.text = "Auto-target neediest"
+	needy_button.toggle_mode = true
+	needy_button.custom_minimum_size = Vector2(190, 40)
+	needy_button.toggled.connect(_on_auto_target_toggled)
+	row.add_child(needy_button)
+	
 	end_turn_button = Button.new()
 	end_turn_button.text = "End Turn"
 	end_turn_button.custom_minimum_size = Vector2(140, 40)
@@ -147,6 +157,14 @@ func _build_left_panel() -> Control:
 	box.add_child(_scroll_wrap(policies_box))
 	return box.get_parent()
 
+func _on_auto_target_toggled(pressed: bool) -> void:
+	auto_target = pressed
+	if pressed:
+		_target_neediest()
+
+func _target_neediest() -> void:
+	GameState.target_borough = GameState.neediest_borough()
+	_update_boroughs()
 
 func _add_city_row(parent: Node, meter: String) -> void:
 	var row := VBoxContainer.new()
@@ -168,6 +186,9 @@ func _add_city_row(parent: Node, meter: String) -> void:
 	city_bars[meter] = bar
 	city_labels[meter] = value_label
 
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_N:
+		_target_neediest()
 
 func _add_attitude_row(parent: Node, body: String) -> void:
 	var row := VBoxContainer.new()
@@ -222,7 +243,7 @@ func _build_map_panel() -> Control:
 		button.pressed.connect(_on_borough_pressed.bind(b))
 		map.add_child(button)
 		borough_buttons[b] = button
-	var hint := _label("Targeted cards hit the selected borough fully. The others get %d%%." % roundi(GameState.SPILLOVER * 100), 12, UITheme.MUTED)
+	var hint := _label("Targeted cards hit the selected borough fully. The others get %d%%." % roundi(GameState.cfg["spillover"] * 100), 12, UITheme.MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
 	return box.get_parent()
@@ -270,10 +291,10 @@ func _build_dialogs() -> void:
 func _update_ui() -> void:
 	turn_label.text = "TURN %d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS]
 	budget_label.text = "Budget %d" % GameState.budget
-	var net := GameState.BASE_INCOME - _total_upkeep()
+	var net: int = GameState.cfg["income"] - _total_upkeep()
 	net_label.text = "Net %s / turn" % _signed_num(net)
 	net_label.add_theme_color_override("font_color", UITheme.GOOD if net >= 0 else UITheme.BAD)
-	actions_label.text = "Actions %d / %d" % [GameState.actions_left, GameState.ACTIONS_PER_TURN]
+	actions_label.text = "Actions %d / %d" % [GameState.actions_left, GameState.cfg["actions"]]
 	_update_city()
 	_update_attitudes()
 	_update_boroughs()
@@ -318,6 +339,15 @@ func _update_boroughs() -> void:
 		var n: int = demand_counts.get(b, 0)
 		if n > 0:
 			label_text += "\n! %d demand%s" % [n, "" if n == 1 else "s"]
+		var low: Array[String] = []
+		if GameState.get_value("affordability", b) < LOW_THRESHOLD:
+			low.append("Afford")
+		if GameState.get_value("ridership", b) < LOW_THRESHOLD:
+			low.append("Ride")
+		if approval < LOW_THRESHOLD:
+			low.append("Approval")
+		if not low.is_empty():
+			label_text += "\nLOW:" + ", ".join(low)
 		button.text = label_text
 		var base := UITheme.heat(approval)
 		var selected: bool = b == GameState.target_borough
@@ -597,3 +627,8 @@ func _on_event_choice(chose_a: bool) -> void:
 func _restart() -> void:
 	GameState.reset()
 	get_tree().reload_current_scene()
+
+func _apply_auto_target() -> void:
+	if auto_target:
+		GameState.target_borough = GameState.neediest_borough()
+		_update_boroughs()
