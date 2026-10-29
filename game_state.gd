@@ -5,6 +5,7 @@ signal meters_changed
 signal log_message(text: String)
 
 const MAX_TURNS := 24
+const HEALTHY := 60
 const GATE_WEAK_MARGIN := 15
 const ATTITUDE_DRIFT := 1
 const LOBBY_COST := 5
@@ -36,16 +37,19 @@ const PRESETS := {
 		"actions": 3, "income": 12, "drift_aff": 1, "drift_rid": 1, "drift_app": 0,
 		"spillover": 0.6, "lose_approval": 10, "lapse_penalty": 4,
 		"event_chance": 0.35, "demand_chance": 0.5, "max_demands": 2, "issue_chance": 0.15,
+		"health_drift": 0.0,
 	},
 	"normal": {
 		"actions": 2, "income": 10, "drift_aff": 2, "drift_rid": 2, "drift_app": 1,
 		"spillover": 0.4, "lose_approval": 15, "lapse_penalty": 8,
 		"event_chance": 0.5, "demand_chance": 0.7, "max_demands": 3, "issue_chance": 0.3,
+		"healthy drift": 0.5,
 	},
 	"hard": {
 		"actions": 2, "income": 8, "drift_aff": 3, "drift_rid": 2, "drift_app": 1,
 		"spillover": 0.3, "lose_approval": 20, "lapse_penalty": 10,
 		"event_chance": 0.6, "demand_chance": 0.8, "max_demands": 4, "issue_chance": 0.4,
+		"healthy_drift": 1.0,
 	},
 }
 
@@ -79,7 +83,8 @@ var approval: int:
 		return city_average("approval")
 
 
-func _drift(stat: String) -> int:
+func _drift(stat: String, borough: String = "") -> int:
+	var amount: int
 	match stat:
 		"affordability":
 			return -cfg["drift_aff"]
@@ -87,6 +92,9 @@ func _drift(stat: String) -> int:
 			return -cfg["drift_rid"]
 		_:
 			return -cfg["drift_app"]
+	if borough != "" and get_value(stat, borough) >= HEALTHY:
+		amount = int(amount * cfg["health_drift"])
+	return amount
 
 func change_attitude(body: String, amount: int) -> void:
 	if not attitudes.has(body):
@@ -298,8 +306,9 @@ func end_turn() -> void:
 	turn += 1
 	actions_left = cfg["actions"]
 	_change("budget", cfg["income"])
-	for stat in STATS:
-		_change(stat, _drift(stat))
+	for b in BOROUGHS:
+		for stat in STATS:
+			stats[b][stat] = clampi(stats[b][stat] + _drift(stat, b), 0, 100)
 	_drift_attitudes()
 	_run_ongoing_policies()
 	_resolve_demands()
