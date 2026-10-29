@@ -30,6 +30,8 @@ var log_label: Label
 var hand_box: HBoxContainer
 var event_dialog: ConfirmationDialog
 var result_dialog: AcceptDialog
+var tip_panel: PanelContainer
+var tip_label: Label
 
 var city_bars := {}
 var city_labels := {}
@@ -287,6 +289,17 @@ func _build_dialogs() -> void:
 	result_dialog.confirmed.connect(_restart)
 	result_dialog.canceled.connect(_restart)
 	add_child(result_dialog)
+	tip_panel = PanelContainer.new()
+	tip_panel.theme_type_variation = "CardPanel"
+	tip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip_panel.visible = false
+	tip_panel.z_index = 100
+	tip_label = Label.new()
+	tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tip_label.custom_minimum_size = Vector2(300, 0)
+	tip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip_panel.add_child(tip_label)
+	add_child(tip_panel)
 
 
 # -UI updates-
@@ -521,6 +534,7 @@ func _add_card(card: PolicyCard) -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	panel.add_child(box)
+	_set_tooltip_deep(panel, _card_tooltip(card))
 
 	var title := _label(card.card_name, 16, UITheme.ACCENT)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -646,3 +660,47 @@ func _show_intro() -> void:
 	d.ok_button_text = "Let's go"
 	add_child(d)
 	d.popup_centered(Vector2i(520, 0))
+
+func _card_tooltip(card: PolicyCard) -> String:
+	var lines: Array[String] = []
+	if card.citywide:
+		lines.append("Citywide: hits every borough at full strength.")
+	else:
+		lines.append("Targeted: hits the selected borough fully. The other boroughs get a smaller share.")
+	if card.ongoing:
+		lines.append("Ongoing: keeps helping every turn after you play it.")
+		if card.upkeep > 0:
+			lines.append("Brings in %d budget every turn." % -card.upkeep)
+	else:
+		lines.append("One-time: the effect happens once, right away.")
+	var gate = card.get("gatekeeper")
+	if gate != null and str(gate) != "":
+		lines.append("Needs approval form %s." % str(gate))
+	return "\n".join(lines)
+
+func _set_tooltip_deep(node: Node, text: String) -> void:
+	if node is Control:
+		node.tooltip_text = text
+	for child in node.get_children():
+		_set_tooltip_deep(child, text)
+
+func _process(_delta: float) -> void:
+	if tip_panel == null:
+		return
+	var mouse := get_global_mouse_position()
+	var text := ""
+	for panel in hand_box.get_children():
+		if panel is Control and panel.get_global_rect().has_point(mouse):
+			text = panel.get_meta("tip", "")
+			break
+	if text == "":
+		tip_panel.visible = false
+		return
+	tip_label.text = text
+	tip_panel.visible = true
+	tip_panel.reset_size()
+	var pos := mouse + Vector2(16, 16)
+	var limit := get_viewport_rect().size - tip_panel.size
+	pos.x = minf(pos.x, limit.x)
+	pos.y = minf(pos.y, limit.y)
+	tip_panel.global_position = pos
