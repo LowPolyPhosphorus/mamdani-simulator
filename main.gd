@@ -63,6 +63,7 @@ func _ready() -> void:
 	_spawn_demand()
 	_update_ui()
 	_draw_hand()
+	_show_intro()
 
 
 # -UI-
@@ -632,3 +633,14 @@ func _apply_auto_target() -> void:
 	if auto_target:
 		GameState.target_borough = GameState.neediest_borough()
 		_update_boroughs()
+
+func _show_intro() -> void:
+	if GameState.intro_shown:
+		return
+	GameState.intro_shown = true
+	var d := AcceptDialog.new()
+	d.title = "Your first turn"
+	d.dialog_text = "1. Click a borough on the map to target it. The tags show where trouble is. \n2. Play cards from your hand at the bottom. Each costs budget and one action. \n3. Click End Turn when you're done. \n\nTip: switch on Auto-target neediest in the top bar to have the game pick the weakest borough for you."
+	d.ok_button_text = "Let's go"
+	add_child(d)
+	d.popup_centered(Vector2i(520, 0))

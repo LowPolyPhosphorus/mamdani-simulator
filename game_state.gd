@@ -10,8 +10,6 @@ const GATE_WEAK_MARGIN := 15
 const ATTITUDE_DRIFT := 1
 const LOBBY_COST := 5
 const LOBBY_GAIN := 8
-const ISSUE_CHANCE := 0.4
-const MAX_ISSUES := 3
 const ISSUE_DRAIN := 3
 const ISSUE_ESCALATE_TURNS := 3
 const ISSUE_PENALTY := 6
@@ -36,29 +34,31 @@ const PRESETS := {
 	"easy": {
 		"actions": 3, "income": 12, "drift_aff": 1, "drift_rid": 1, "drift_app": 0,
 		"spillover": 0.6, "lose_approval": 10, "lapse_penalty": 4,
-		"event_chance": 0.35, "demand_chance": 0.5, "max_demands": 2, "issue_chance": 0.15,
+		"event_chance": 0.35, "demand_chance": 0.5, "max_demands": 2, "issue_chance": 0.2, "max_issues": 2,
 		"health_drift": 0.0,
 	},
 	"normal": {
 		"actions": 2, "income": 10, "drift_aff": 2, "drift_rid": 2, "drift_app": 1,
 		"spillover": 0.4, "lose_approval": 15, "lapse_penalty": 8,
-		"event_chance": 0.5, "demand_chance": 0.7, "max_demands": 3, "issue_chance": 0.3,
+		"event_chance": 0.5, "demand_chance": 0.7, "max_demands": 3, "issue_chance": 0.4, "max_issues": 3,
 		"healthy drift": 0.5,
 	},
 	"hard": {
 		"actions": 2, "income": 8, "drift_aff": 3, "drift_rid": 2, "drift_app": 1,
 		"spillover": 0.3, "lose_approval": 20, "lapse_penalty": 10,
-		"event_chance": 0.6, "demand_chance": 0.8, "max_demands": 4, "issue_chance": 0.4,
+		"event_chance": 0.6, "demand_chance": 0.8, "max_demands": 4, "issue_chance": 0.5, "max_issues": 4,
 		"healthy_drift": 1.0,
 	},
 }
 
 var difficulty: String = "normal"
+var intro_shown := false
 var cfg: Dictionary = PRESETS["normal"]
 
 func set_difficulty(d: String) -> void:
 	difficulty = d
 	cfg = PRESETS[d]
+	intro_shown = false
 
 var turn: int = 1
 var budget: int = 50
@@ -262,7 +262,7 @@ func add_demand(demand: Demand, borough: String) -> void:
 
 
 func _spawn_issue() -> void:
-	if active_issues.size() >= MAX_ISSUES or randf() > ISSUE_CHANCE:
+	if active_issues.size() >= cfg["max_issues"] or randf() > cfg["issue_chance"]:
 		return
 	var b: String = BOROUGHS.pick_random()
 	var template: Dictionary = ISSUES.pick_random()
