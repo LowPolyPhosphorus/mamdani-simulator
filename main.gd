@@ -32,6 +32,7 @@ var event_dialog: ConfirmationDialog
 var result_dialog: AcceptDialog
 var tip_panel: PanelContainer
 var tip_label: Label
+var event_overlay: Control
 
 var city_bars := {}
 var city_labels := {}
@@ -629,11 +630,7 @@ func _maybe_trigger_event() -> void:
 	if events.is_empty() or GameState.is_game_over() or randf() > EVENT_CHANCE:
 		return
 	current_event = events.pick_random()
-	event_dialog.title = current_event.title if current_event.borough == "Any" else "%s: %s" % [current_event.borough, current_event.title]
-	event_dialog.dialog_text = current_event.description
-	event_dialog.ok_button_text = current_event.choice_a.choice_text
-	event_dialog.cancel_button_text = current_event.choice_b.choice_text
-	event_dialog.popup_centered()
+	_show_event_popup()
 
 
 func _on_event_choice(chose_a: bool) -> void:
@@ -673,9 +670,8 @@ func _card_tooltip(card: PolicyCard) -> String:
 			lines.append("Brings in %d budget every turn." % -card.upkeep)
 	else:
 		lines.append("One-time: the effect happens once, right away.")
-	var gate = card.get("gatekeeper")
-	if gate != null and str(gate) != "":
-		lines.append("Needs approval form %s." % str(gate))
+	if card.gatekeeper != "None":
+		lines.append("Needs approval from %s. If their mood is too low, the card is blocked or only half as effective." % card.gatekeeper)
 	return "\n".join(lines)
 
 func _set_tooltip_deep(node: Node, text: String) -> void:
@@ -686,6 +682,9 @@ func _set_tooltip_deep(node: Node, text: String) -> void:
 
 func _process(_delta: float) -> void:
 	if tip_panel == null:
+		return
+	if event_overlay != null:
+		tip_panel.visible = false
 		return
 	var mouse := get_global_mouse_position()
 	var text := ""
@@ -704,3 +703,78 @@ func _process(_delta: float) -> void:
 	pos.x = minf(pos.x, limit.x)
 	pos.y = minf(pos.y, limit.y)
 	tip_panel.global_position = pos
+
+func _choice_preview(c: EventChoice) -> String:
+	var names := {
+		"budget_change": "Budget",
+		"affordability_change": "Afford",
+		"ridership_change": "Ride",
+		"approval_change": "Approval",
+	}
+	var parts: Array[String] = []
+	for key in names:
+		var v = c.get(key)
+		if v != null and int(v) != 0:
+			parts.append("%s %+d" % [names[key], int(v)])
+	return ", ".join(parts)
+
+func _show_event_popup() -> void:
+	if event_overlay != null:
+		return
+	event_overlay = Control.new()
+	event_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(event_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.1, 0.08, 0.05, 0.45)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	event_overlay.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	event_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0, 0, 0, 0.92)
+	box.set_corner_radius_all(14)
+	panel.add_theme_stylebox_override("panel", box)
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 22)
+	panel.add_child(margin)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	margin.add_child(v)
+
+	var heading := Label.new()
+	heading.text = current_event.title if current_event.borough == "Any" else "%s: %s" % [current_event.borough, current_event.title]
+	heading.theme_type_variation = "HeaderLabel"
+	heading.add_theme_font_size_override("font_size", 26)
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.custom_minimum_size = Vector2(460, 0)
+	v.add_child(heading)
+
+	var body := Label.new()
+	body.text = current_event.description
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size = Vector2(460, 0)
+	v.add_child(body)
+
+	var choices := [current_event.choice_a, current_event.choice_b]
+	for i in choices.size():
+		var c: EventChoice = choices[i]
+		var b := Button.new()
+		b.text = c.choice_text + "\n" + _choice_preview(c)
+		b.custom_minimum_size = Vector2(460, 64)
+		b.pressed.connect(_pick_event.bind(i == 0))
+		v.add_child(b)
+
+func _pick_event(chose_a: bool) -> void:
+	if event_overlay != null:
+		event_overlay.queue_free()
+		event_overlay = null
+	_on_event_choice(chose_a)
