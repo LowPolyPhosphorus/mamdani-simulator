@@ -786,6 +786,7 @@ func _borough_info(b: String) -> String:
 func _show_summary() -> void:
 	if summary_overlay != null:
 		return
+	var prev_best := _record_best()
 	summary_overlay = Control.new()
 	summary_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(summary_overlay)
@@ -838,6 +839,12 @@ func _show_summary() -> void:
 	left.add_child(_label("RUN", 12, UITheme.MUTED))
 	_summary_row(left, "Turns served", "%d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS])
 	_summary_row(left, "Cards enacted", str(cards_enacted))
+	
+	var now_approval: int = GameState.get_value("approval")
+	if now_approval > prev_best:
+		_summary_row(left, "Best approval", "%d  NEW BEST!" % now_approval, UITheme.GOOD)
+	else:
+		_summary_row(left, "Best approval", str(prev_best))
 	
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 6)
@@ -907,3 +914,21 @@ func _add_log_scroll(parent: Node) -> void:
 	log_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	log_scroll.custom_minimum_size = Vector2(0, 110)
 	parent.add_child(log_scroll)
+
+const SAVE_PATH := "user://best.cfg"
+
+func _difficulty_key() -> String:
+	var d = GameState.get("difficulty")
+	return "default" if d == null else str(d)
+
+
+func _record_best() -> int:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH) 
+	var key := _difficulty_key()
+	var prev: int = cfg.get_value("best", key, -1)
+	var now: int = GameState.get_value("approval")
+	if now > prev:
+		cfg.set_value("best", key, now)
+		cfg.save(SAVE_PATH)
+	return prev
