@@ -33,6 +33,9 @@ var result_dialog: AcceptDialog
 var tip_panel: PanelContainer
 var tip_label: Label
 var event_overlay: Control
+var borough_map: Control
+var summary_overlay: Control
+var cards_enacted := 0
 
 var city_bars := {}
 var city_labels := {}
@@ -231,26 +234,23 @@ func _update_attitudes() -> void:
 func _build_map_panel() -> Control:
 	var box := _make_panel("Boroughs (click one to target it)")
 	box.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var center := CenterContainer.new()
-	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(center)
-	var map := Control.new()
-	map.custom_minimum_size = Vector2(470, 340)
-	center.add_child(map)
-	for b in GameState.BOROUGHS:
-		var rect: Rect2 = MAP_LAYOUT[b]
-		var button := Button.new()
-		button.position = rect.position
-		button.size = rect.size
-		button.clip_text = true
-		button.add_theme_font_size_override("font_size", 14)
-		button.pressed.connect(_on_borough_pressed.bind(b))
-		map.add_child(button)
-		borough_buttons[b] = button
+	borough_map = load("res://borough_map.gd").new()
+	borough_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	borough_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(borough_map)
+	borough_map.clip_contents = true
+	box.get_parent().size_flags_vertical = Control.SIZE_EXPAND_FILL
+	borough_map.picked.connect(_on_map_picked)
 	var hint := _label("Targeted cards hit the selected borough fully. The others get %d%%." % roundi(GameState.cfg["spillover"] * 100), 12, UITheme.MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
 	return box.get_parent()
+
+
+func _wrapped(label: Label) -> Label:
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return label
 
 
 func _build_right_panel() -> Control:
@@ -266,7 +266,7 @@ func _build_right_panel() -> Control:
 	log_label = _label("", 13, UITheme.MUTED)
 	log_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(log_label)
+	_add_log_scroll(box)
 	return box.get_parent()
 
 
@@ -275,7 +275,7 @@ func _build_hand_panel() -> Control:
 	hand_box = HBoxContainer.new()
 	hand_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_box.add_theme_constant_override("separation", 10)
-	box.add_child(hand_box)
+	box.add_child(hand_box); box.get_parent().custom_minimum_size.y = 340
 	return box.get_parent()
 
 
@@ -321,9 +321,7 @@ func _update_ui() -> void:
 	if GameState.is_game_over() and not game_ended:
 		game_ended = true
 		end_turn_button.disabled = true
-		result_dialog.title = "Term over"
-		result_dialog.dialog_text = GameState.get_ending()
-		result_dialog.popup_centered()
+		_show_summary()
 
 
 func _tween_bar(bar: ProgressBar, target: float) -> void:
@@ -342,41 +340,10 @@ func _update_city() -> void:
 		_tween_bar(city_bars[meter], value)
 
 
-func _update_boroughs() -> void:
-	var demand_counts := {}
-	for entry in GameState.active_demands:
-		var key: String = entry["borough"]
-		demand_counts[key] = demand_counts.get(key, 0) + 1
-	for b in GameState.BOROUGHS:
-		var button: Button = borough_buttons[b]
-		var approval := GameState.get_value("approval", b)
-		var label_text := "%s\nAfford %d  Ride %d\nApproval %d" % [
-			b, GameState.get_value("affordability", b), GameState.get_value("ridership", b), approval
-		]
-		var n: int = demand_counts.get(b, 0)
-		if n > 0:
-			label_text += "\n! %d demand%s" % [n, "" if n == 1 else "s"]
-		var low: Array[String] = []
-		if GameState.get_value("affordability", b) < LOW_THRESHOLD:
-			low.append("Afford")
-		if GameState.get_value("ridership", b) < LOW_THRESHOLD:
-			low.append("Ride")
-		if approval < LOW_THRESHOLD:
-			low.append("Approval")
-		if not low.is_empty():
-			label_text += "\nLOW:" + ", ".join(low)
-		button.text = label_text
-		var base := UITheme.heat(approval)
-		var selected: bool = b == GameState.target_borough
-		for state in ["normal", "hover", "pressed", "disabled"]:
-			var fill := base.lightened(0.12) if state == "hover" else base
-			button.add_theme_stylebox_override(state, UITheme.tile(fill, selected))
-
-
 func _update_policies() -> void:
 	_clear(policies_box)
 	if GameState.active_policies.is_empty():
-		policies_box.add_child(_label("None yet. Ongoing cards you enact show up here.", 13, UITheme.MUTED))
+		_add_wrapped(policies_box, _label("None yet. Ongoing cards you enact show up here.", 13, UITheme.MUTED))
 		return
 	for entry in GameState.active_policies:
 		var card: PolicyCard = entry["card"]
@@ -388,13 +355,13 @@ func _update_policies() -> void:
 			money = "income +%d" % -card.upkeep
 		var label := _label("%s\n%s | %s" % [card.card_name, where, money], 14)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-		policies_box.add_child(label)
+		_add_wrapped(policies_box, label)
 
 
 func _update_demands() -> void:
 	_clear(demands_box)
 	if GameState.active_demands.is_empty():
-		demands_box.add_child(_label("No demands right now.", 13, UITheme.MUTED))
+		_add_wrapped(demands_box,_label("No demands right now.", 13, UITheme.MUTED))
 		return
 	for entry in GameState.active_demands:
 		var d: Demand = entry["demand"]
@@ -406,13 +373,13 @@ func _update_demands() -> void:
 			d.group_name, where, d.meter.capitalize(), now, d.threshold, entry["turns_left"]
 		], 14, UITheme.BAD if urgent else UITheme.TEXT)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-		demands_box.add_child(label)
+		_add_wrapped(demands_box,label)
 
 
 func _update_issues() -> void:
 	_clear(issues_box)
 	if GameState.active_issues.is_empty():
-		issues_box.add_child(_label("No issues right now.", 13, UITheme.MUTED))
+		_add_wrapped(issues_box, _label("No issues right now.", 13, UITheme.MUTED))
 		return
 	for entry in GameState.active_issues:
 		var urgent: bool = entry["age"] >= GameState.ISSUE_ESCALATE_TURNS - 1
@@ -420,7 +387,7 @@ func _update_issues() -> void:
 			entry["borough"], entry["name"], entry["meter"].capitalize(), GameState.ISSUE_DRAIN, entry["age"]
 		], 14, UITheme.BAD if urgent else UITheme.TEXT)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-		issues_box.add_child(label)
+		_add_wrapped(issues_box, label)
 
 
 func _clear(node: Node) -> void:
@@ -530,7 +497,7 @@ func _effects_bbcode(card: PolicyCard) -> String:
 
 func _add_card(card: PolicyCard) -> void:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(225, 0)
+	panel.custom_minimum_size = Vector2(225, 280)
 	panel.tooltip_text = card.description
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
@@ -538,7 +505,7 @@ func _add_card(card: PolicyCard) -> void:
 	_set_tooltip_deep(panel, _card_tooltip(card))
 
 	var title := _label(card.card_name, 16, UITheme.ACCENT)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; title.custom_minimum_size.y = 44
 	box.add_child(title)
 
 	var cost_text := "Cost %d" % card.cost
@@ -550,12 +517,12 @@ func _add_card(card: PolicyCard) -> void:
 	box.add_child(tag)
 
 	var gate := _label("", 12, UITheme.MUTED)
-	gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; gate.custom_minimum_size.y = 32
 	box.add_child(gate)
 
 	var fx := RichTextLabel.new()
 	fx.bbcode_enabled = true
-	fx.fit_content = true
+	fx.fit_content = false; fx.custom_minimum_size = Vector2(0, 80); fx.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	fx.scroll_active = false
 	fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fx.text = _effects_bbcode(card)
@@ -584,7 +551,7 @@ func _refresh_hand() -> void:
 		var button: Button = panel.get_meta("button")
 		var gate: Label = panel.get_meta("gate")
 		if card.gatekeeper == "None":
-			gate.visible = false
+			gate.text = " "
 		else:
 			gate.visible = true
 			var mood: int = GameState.attitudes[card.gatekeeper]
@@ -613,6 +580,7 @@ func _refresh_hand() -> void:
 
 func _on_card_pressed(card: PolicyCard, panel: PanelContainer) -> void:
 	if GameState.play_card(card, GameState.target_borough):
+		cards_enacted += 1
 		panel.set_meta("played", true)
 		_refresh_hand()
 
@@ -683,7 +651,7 @@ func _set_tooltip_deep(node: Node, text: String) -> void:
 func _process(_delta: float) -> void:
 	if tip_panel == null:
 		return
-	if event_overlay != null:
+	if event_overlay != null or summary_overlay != null:
 		tip_panel.visible = false
 		return
 	var mouse := get_global_mouse_position()
@@ -692,6 +660,8 @@ func _process(_delta: float) -> void:
 		if panel is Control and panel.get_global_rect().has_point(mouse):
 			text = panel.get_meta("tip", "")
 			break
+	if text == "" and borough_map != null and borough_map.hover != "":
+		text = _borough_info(borough_map.hover)
 	if text == "":
 		tip_panel.visible = false
 		return
@@ -778,3 +748,162 @@ func _pick_event(chose_a: bool) -> void:
 		event_overlay.queue_free()
 		event_overlay = null
 	_on_event_choice(chose_a)
+
+func _on_map_picked(b: String) -> void:
+	_on_borough_pressed(b)
+
+func _update_boroughs() -> void:
+	var approvals := {}
+	for b in GameState.BOROUGHS:
+		approvals[b] = GameState.get_value("approval", b)
+	borough_map.update_state(approvals, GameState.target_borough)
+
+func _borough_info(b: String) -> String:
+	var aff: int = GameState.get_value("affordability", b)
+	var rid: int = GameState.get_value("ridership", b)
+	var app: int = GameState.get_value("approval", b)
+	var lines: Array[String] = [b.to_upper(), "Affordability %d" % aff, "Ridership %d" % rid, "Approval %d" % app]
+	var low: Array[String] = []
+	if aff < LOW_THRESHOLD:
+		low.append("Afford")
+	if rid < LOW_THRESHOLD:
+		low.append("Ride")
+	if app < LOW_THRESHOLD:
+		low.append("Approval")
+	if not low.is_empty():
+		lines.append("LOW: " + ", ".join(low))
+	var n := 0
+	for entry in GameState.active_demands:
+		if entry["borough"] == b:
+			n += 1
+	if n > 0:
+		lines.append("! %d demand%s" % [n, "" if n== 1 else "s"])
+	for issue in GameState.active_issues:
+		if issue["borough"] == b:
+			lines.append("Issue: " + str(issue["name"]))
+	return "\n".join(lines)
+
+func _show_summary() -> void:
+	if summary_overlay != null:
+		return
+	summary_overlay = Control.new()
+	summary_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(summary_overlay)
+	
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	summary_overlay.add_child(dim)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	summary_overlay.add_child(center)
+	
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+	
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	margin.add_child(v)
+	
+	v.add_child(_label("Term over", 30, UITheme.ACCENT))
+	
+	var ending := _label(GameState.get_ending(), 15)
+	ending.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ending.custom_minimum_size = Vector2(560, 0)
+	ending.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	v.add_child(ending)
+	
+	v.add_child(HSeparator.new())
+	
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 40)
+	v.add_child(cols)
+	
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 6)
+	left.custom_maximum_size = Vector2(260, 0)
+	cols.add_child(left)
+	
+	left.add_child(_label("CITYWIDE", 12, UITheme.MUTED))
+	for meter in METERS:
+		var value := GameState.get_value(meter)
+		_summary_row(left, meter.capitalize(), str(value), _score_color(value))
+	
+	left.add_child(_label("RUN", 12, UITheme.MUTED))
+	_summary_row(left, "Turns served", "%d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS])
+	_summary_row(left, "Cards enacted", str(cards_enacted))
+	
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 6)
+	right.custom_minimum_size = Vector2(260, 0)
+	cols.add_child(right)
+	
+	right.add_child(_label("BOROUGH APPROVAL", 12, UITheme.MUTED))
+	for b in GameState.BOROUGHS:
+		var approval: int = GameState.get_value("approval", b)
+		_summary_row(right, b, str(approval), _score_color(approval))
+	
+	right.add_child(_label("GATEKEEPERS", 12, UITheme.MUTED))
+	for body in GameState.GATEKEEPERS:
+		var mood: int = GameState.attitudes[body]
+		_summary_row(right, body, str(mood), _score_color(mood))
+	
+	v.add_child(HSeparator.new())
+	
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	v.add_child(buttons)
+	
+	var again := Button.new()
+	again.text = "Play again"
+	again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	again.custom_minimum_size = Vector2(0, 48)
+	again.pressed.connect(_restart)
+	buttons.add_child(again)
+
+	var menu := Button.new()
+	again.text = "Main menu"
+	again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	again.custom_minimum_size = Vector2(0, 48)
+	again.pressed.connect(_restart)
+	buttons.add_child(menu)
+
+
+func _summary_row(parent: Node, name: String, value: String, col: Color = UITheme.TEXT) -> void:
+	var row := HBoxContainer.new()
+	var n := _label(name, 15)
+	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(n)
+	row.add_child(_label(value, 15, col))
+	parent.add_child(row)
+
+
+func _score_color(value: int) -> Color:
+	if value < LOW_THRESHOLD:
+		return UITheme.BAD
+	if value >= 60:
+		return UITheme.GOOD
+	return UITheme.TEXT
+
+
+func _to_title() -> void:
+	GameState.reset()
+	get_tree().change_scene_to_file("res://title.tscn")
+
+
+func _add_wrapped(parent: Node, label: Label) -> void:
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(label)
+
+func _add_log_scroll(parent: Node) -> void:
+	var log_scroll := _scroll_wrap(log_label)
+	log_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	log_scroll.custom_minimum_size = Vector2(0, 110)
+	parent.add_child(log_scroll)
