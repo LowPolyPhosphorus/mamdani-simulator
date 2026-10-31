@@ -217,7 +217,7 @@ func _show_difficulty() -> void:
 	panel.add_child(margin)
 	
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("seperation", 10)
+	v.add_theme_constant_override("separation", 10)
 	margin.add_child(v)
 	
 	var heading := Label.new()
@@ -227,9 +227,9 @@ func _show_difficulty() -> void:
 	
 	for d in DIFFICULTIES:
 		var b := Button.new()
-		b.text = d[0] + "\n" + d[2]
+		b.text = d[0] + "\n" + d[2] + _best_text(d[1])
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_maximum_size = Vector2(460, 64)
+		b.custom_minimum_size = Vector2(460, 90)
 		b.pressed.connect(_start.bind(d[1]))
 		v.add_child(b)
 	
@@ -249,3 +249,10 @@ func _continue() -> void:
 	var data = save.get_value("run", "data", {})
 	GameState.pending_load = true
 	_start(str(data.get("difficulty", "normal")))
+
+func _best_text(key: String) -> String:
+	var save := ConfigFile.new()
+	if save.load("user://best.cfg") != OK:
+		return ""
+	var best: int =save.get_value("best", key, -1)
+	return "" if best < 0 else "\nBest approval: %d" % best

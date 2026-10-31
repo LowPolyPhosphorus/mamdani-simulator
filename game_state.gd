@@ -41,13 +41,13 @@ const PRESETS := {
 		"actions": 2, "income": 10, "drift_aff": 2, "drift_rid": 2, "drift_app": 1,
 		"spillover": 0.4, "lose_approval": 15, "lapse_penalty": 8,
 		"event_chance": 0.5, "demand_chance": 0.7, "max_demands": 3, "issue_chance": 0.4, "max_issues": 3,
-		"healthy drift": 0.5,
+		"health_drift": 0.5,
 	},
 	"hard": {
 		"actions": 2, "income": 8, "drift_aff": 3, "drift_rid": 2, "drift_app": 1,
 		"spillover": 0.3, "lose_approval": 20, "lapse_penalty": 10,
 		"event_chance": 0.6, "demand_chance": 0.8, "max_demands": 4, "issue_chance": 0.5, "max_issues": 4,
-		"healthy_drift": 1.0,
+		"health_drift": 1.0,
 	},
 }
 
@@ -88,11 +88,11 @@ func _drift(stat: String, borough: String = "") -> int:
 	var amount: int
 	match stat:
 		"affordability":
-			return -cfg["drift_aff"]
+			amount = -cfg["drift_aff"]
 		"ridership":
-			return -cfg["drift_rid"]
+			amount = -cfg["drift_rid"]
 		_:
-			return -cfg["drift_app"]
+			amount = -cfg["drift_app"]
 	if borough != "" and get_value(stat, borough) >= HEALTHY:
 		amount = int(amount * cfg["health_drift"])
 	return amount
