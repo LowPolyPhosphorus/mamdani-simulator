@@ -35,6 +35,7 @@ var tip_label: Label
 var event_overlay: Control
 var borough_map: Control
 var summary_overlay: Control
+var pause_overlay: Control
 var cards_enacted := 0
 
 var city_bars := {}
@@ -47,6 +48,7 @@ var log_lines: Array[String] = []
 var current_event: GameEvent
 var game_ended := false
 var auto_target := false
+var enacting := false
 
 
 func _ready() -> void:
@@ -65,11 +67,16 @@ func _ready() -> void:
 	GameState.turn_changed.connect(_maybe_trigger_event)
 	GameState.meters_changed.connect(_refresh_hand)
 	GameState.log_message.connect(_on_log_message)
+	if GameState.pending_load:
+		GameState.pending_load = false
+		if _load_game():
+			return
 	_spawn_demand()
 	_spawn_demand()
 	_update_ui()
 	_draw_hand()
 	_show_intro()
+	_autosave()
 
 
 # -UI-
@@ -194,8 +201,23 @@ func _add_city_row(parent: Node, meter: String) -> void:
 	city_labels[meter] = value_label
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_N:
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if event.keycode == KEY_ESCAPE:
+		if pause_overlay != null:
+			_close_pause()
+		elif event_overlay == null and summary_overlay == null and not game_ended:
+			_show_pause()
+		return
+	if pause_overlay != null or enacting or event_overlay != null or summary_overlay != null or game_ended:
+		return
+	if event.keycode == KEY_N:
 		_target_neediest()
+	elif event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
+		if not end_turn_button.disabled:
+			GameState.end_turn()
+	elif event.keycode >= KEY_1 and event.keycode <= KEY_5:
+		_enact_slot(event.keycode - KEY_1)
 
 func _add_attitude_row(parent: Node, body: String) -> void:
 	var row := VBoxContainer.new()
@@ -651,7 +673,7 @@ func _set_tooltip_deep(node: Node, text: String) -> void:
 func _process(_delta: float) -> void:
 	if tip_panel == null:
 		return
-	if event_overlay != null or summary_overlay != null:
+	if event_overlay != null or summary_overlay != null or pause_overlay != null:
 		tip_panel.visible = false
 		return
 	var mouse := get_global_mouse_position()
@@ -748,6 +770,7 @@ func _pick_event(chose_a: bool) -> void:
 		event_overlay.queue_free()
 		event_overlay = null
 	_on_event_choice(chose_a)
+	_autosave()
 
 func _on_map_picked(b: String) -> void:
 	_on_borough_pressed(b)
@@ -828,7 +851,7 @@ func _show_summary() -> void:
 	
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 6)
-	left.custom_maximum_size = Vector2(260, 0)
+	left.custom_minimum_size = Vector2(260, 0)
 	cols.add_child(left)
 	
 	left.add_child(_label("CITYWIDE", 12, UITheme.MUTED))
@@ -875,10 +898,10 @@ func _show_summary() -> void:
 	buttons.add_child(again)
 
 	var menu := Button.new()
-	again.text = "Main menu"
-	again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	again.custom_minimum_size = Vector2(0, 48)
-	again.pressed.connect(_restart)
+	menu.text = "Main menu"
+	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu.custom_minimum_size = Vector2(0, 48)
+	menu.pressed.connect(_to_title)
 	buttons.add_child(menu)
 
 
@@ -932,3 +955,210 @@ func _record_best() -> int:
 		cfg.set_value("best", key, now)
 		cfg.save(SAVE_PATH)
 	return prev
+
+func _enact_slot(i: int) -> void:
+	if i >= hand_box.get_child_count():
+		return
+	var panel: Control = hand_box.get_child(i)
+	var button: Button = panel.get_meta("button")
+	if button.disabled:
+		return
+	enacting = true
+	panel.pivot_offset = panel.size / 2.0
+	panel.z_index = 1
+	panel.self_modulate = Color(1.8, 1.7, 1.2)
+	var tween := create_tween()
+	tween.tween_property(panel, "scale", Vector2(1.08, 1.08), 0.05)
+	tween.tween_interval(0.1)
+	tween.tween_callback(_finish_enact.bind(panel))
+
+
+func _finish_enact(panel: Control) -> void:
+	enacting = false
+	if not is_instance_valid(panel) or panel.is_queued_for_deletion():
+		return
+	panel.scale = Vector2.ONE
+	panel.z_index = 0
+	panel.self_modulate = Color.WHITE
+	_on_card_pressed(panel.get_meta("card"), panel)
+
+
+# -Pause menu-
+
+func _show_pause() -> void:
+	if pause_overlay != null:
+		return
+	pause_overlay = Control.new()
+	pause_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(pause_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pause_overlay.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pause_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	margin.add_child(v)
+
+	v.add_child(_label("Paused", 28, UITheme.ACCENT))
+
+	var resume := Button.new()
+	resume.text = "Resume"
+	resume.custom_minimum_size = Vector2(280, 48)
+	resume.pressed.connect(_close_pause)
+	v.add_child(resume)
+
+	var save_quit := Button.new()
+	save_quit.text = "Save and quit to tile" 
+	save_quit.custom_minimum_size = Vector2(280, 48)
+	save_quit.pressed.connect(_save_and_quit)
+	v.add_child(save_quit)
+	
+	var quit := Button.new()
+	quit.text = "Quit without saving"
+	quit.custom_minimum_size = Vector2(280, 48)
+	quit.pressed.connect(_to_title)
+	v.add_child(quit)
+	
+	var note := _label("Quitting without saving returns you to your last autosave, from the start of this turn.", 12, UITheme.MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(280, 0)
+	v.add_child(note)
+
+func _close_pause() -> void:
+	if pause_overlay != null:
+		pause_overlay.queue_free()
+		pause_overlay = null
+
+
+# -Save and load-
+
+const RUN_SAVE_PATH := "user://run.cfg"
+
+
+func _demand_key(d: Demand) -> String:
+	return "%s|%s%d" % [d.group_name, d.meter, d.threshold]
+
+
+func _find_card(card_name: String) -> PolicyCard:
+	for c in deck:
+		if c.card_name == card_name:
+			return c
+	return null
+
+
+func _find_demand(key: String) -> Demand:
+	for d in demand_pool:
+		if _demand_key(d) == key:
+			return d
+	return null
+
+
+func _autosave() -> void:
+	if game_ended or GameState.is_game_over() or event_overlay != null:
+		return
+	_save_game()
+
+
+func _save_and_quit() -> void:
+	_save_game()
+	_to_title()
+
+
+func _save_game() -> void:
+	var hand := []
+	for panel in hand_box.get_children():
+		var c: PolicyCard = panel.get_meta("card")
+		hand.append({"card": c.card_name, "played": panel.get_meta("played", false)})
+	var policies := []
+	for e in GameState.active_policies:
+		policies.append({"card": e["card"].card_name, "borough": e["borough"]})
+	var demands := []
+	for e in GameState.active_demands:
+		demands.append({"demand": _demand_key(e["demand"]), "turns_left": e["turns_left"], "borough": e["borough"]})
+	var issues := []
+	for e in GameState.active_issues:
+		issues.append(e.duplicate())
+	var data := {
+		"version": 1,
+		"difficulty": GameState.difficulty,
+		"turn": GameState.turn,
+		"budget": GameState.budget,
+		"actions_left": GameState.actions_left,
+		"stats": GameState.stats.duplicate(true),
+		"attitudes": GameState.attitudes.duplicate(),
+		"target_borough": GameState.target_borough,
+		"policies": policies,
+		"demands": demands,
+		"issues": issues,
+		"hand": hand,
+		"card_enacted": cards_enacted,
+	}
+	var save := ConfigFile.new()
+	save.set_value("run", "data", data)
+	save.save(RUN_SAVE_PATH)
+
+
+func _load_game() -> bool:
+	var save := ConfigFile.new()
+	if save.load(RUN_SAVE_PATH) != OK:
+		return false
+	var data = save.get_value("run", "data", null)
+	if typeof(data) != TYPE_DICTIONARY or data.get("version", 0) != 1:
+		return false
+	
+	GameState.set_difficulty(data["difficulty"])
+	GameState.intro_shown = true
+	GameState.turn = data["turn"]
+	GameState.budget = data["budget"]
+	GameState.actions_left = data["actions_left"]
+	GameState.target_borough = data["target_borough"]
+	GameState.stats = data["stats"]
+	GameState.attitudes = data["attitudes"]
+	
+	GameState.active_policies.clear()
+	for e in data["policies"]:
+		var card := _find_card(e["card"])
+		if card != null:
+			GameState.active_policies.append({"card": card, "borough": e["borough"]})
+	
+	GameState.active_demands.clear()
+	for e in data["demands"]:
+		var demand := _find_demand(e["demand"])
+		if demand != null:
+			GameState.active_demands.append({"demand": demand, "turns_left": e["turns_left"], "borough": e["borough"]})
+	
+	GameState.active_issues.clear()
+	for e in data["issues"]:
+		GameState.active_issues.append(e)
+	
+	_clear(hand_box)
+	for e in data["hand"]:
+		var card := _find_card(e["card"])
+		if card == null:
+			continue
+		_add_card(card)
+		hand_box.get_child(hand_box.get_child_count() - 1).set_meta("played", e["played"])
+	
+	cards_enacted = data.get("cards_enacted", 0)
+	_update_ui()
+	_refresh_hand()
+	return true
+
+
+func _delete_save() -> void:
+	if FileAccess.file_exists(RUN_SAVE_PATH):
+		DirAccess.remove_absolute(RUN_SAVE_PATH)

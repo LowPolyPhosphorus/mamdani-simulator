@@ -53,6 +53,7 @@ const PRESETS := {
 
 var difficulty: String = "normal"
 var intro_shown := false
+var pending_load := false
 var cfg: Dictionary = PRESETS["normal"]
 
 func set_difficulty(d: String) -> void:

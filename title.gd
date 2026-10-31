@@ -18,6 +18,13 @@ func _ready() -> void:
 	box.add_child(logo)
 	_animate_logo(logo)
 	
+	if FileAccess.file_exists("user://run.cfg"):
+		var cont := Button.new()
+		cont.text = "Continue"
+		cont.custom_minimum_size = Vector2(0, 52)
+		cont.pressed.connect(_continue)
+		box.add_child(cont)
+	
 	var start := Button.new()
 	start.text = "Start Term"
 	start.custom_minimum_size = Vector2(0, 52)
@@ -37,6 +44,7 @@ func _ready() -> void:
 	quit.text = "Quit"
 	quit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quit.pressed.connect(get_tree().quit)
+	quit.visible = not OS.has_feature("web")
 	row.add_child(quit)
 	
 	var disclaimer := Label.new()
@@ -233,3 +241,11 @@ func _show_difficulty() -> void:
 func _close_difficulty() -> void:
 	diff_overlay.queue_free()
 	diff_overlay = null
+
+func _continue() -> void:
+	var save := ConfigFile.new()
+	if save.load("user://run.cfg") != OK:
+		return
+	var data = save.get_value("run", "data", {})
+	GameState.pending_load = true
+	_start(str(data.get("difficulty", "normal")))
