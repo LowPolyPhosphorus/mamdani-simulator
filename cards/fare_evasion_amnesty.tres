@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bhu0i3byswxcu"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Fare Evasion Amnesty"
+cost = 4
+citywide = true
+ridership_change = 2
+approval_change = 5
+gatekeeper = "MTA"
+gate_threshold = 45
+attitude_change = -3
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

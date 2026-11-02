@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bjvkae0ekslat"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_qh1d0"]
+
+[resource]
+script = ExtResource("1_qh1d0")
+card_name = "Express Bus Network"
+cost = 14
+ridership_change = 14
+approval_change = 3
+gatekeeper = "MTA"
+gate_threshold = 45
+attitude_change = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

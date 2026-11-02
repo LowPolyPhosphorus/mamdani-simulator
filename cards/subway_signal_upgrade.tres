@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://dk8xc6ovnq471"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_p4027"]
+
+[resource]
+script = ExtResource("1_p4027")
+card_name = "Subway Signal Upgrade"
+cost = 18
+citywide = true
+ridership_change = 4
+gatekeeper = "MTA"
+gate_threshold = 55
+attitude_change = 3
+ongoing = true
+upkeep = 3
+per_turn_ridership = 2
+synergy_with = "Congestion Pricing"
+synergy_bonus = 4
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

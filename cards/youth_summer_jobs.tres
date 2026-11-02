@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://c8r5jp3rh3wng"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Youth Summer Jobs"
+cost = 13
+citywide = true
+affordability_change = 4
+approval_change = 5
+gatekeeper = "None"
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

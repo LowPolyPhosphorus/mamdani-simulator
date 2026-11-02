@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bn7fbg40p1127"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Utility Bill Relief"
+cost = 10
+citywide = true
+affordability_change = 5
+approval_change = 2
+gatekeeper = "None"
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

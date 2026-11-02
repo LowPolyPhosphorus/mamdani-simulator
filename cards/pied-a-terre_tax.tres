@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bgd2ewoitrynw"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Pied-a-Terre Tax"
+cost = 4
+citywide = true
+approval_change = -2
+gatekeeper = "Albany"
+gate_threshold = 55
+attitude_change = -1
+ongoing = true
+upkeep = -3
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

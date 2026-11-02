@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://dt6f1e3mq2fah"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Congestion Pricing"
+cost = 12
+citywide = true
+gatekeeper = "Albany"
+gate_threshold = 55
+attitude_change = -2
+ongoing = true
+upkeep = -4
+per_turn_ridership = 1
+per_turn_approval = -1
+synergy_with = "Subway Signal Upgrade"
+synergy_bonus = 5
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

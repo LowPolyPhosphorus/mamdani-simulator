@@ -658,7 +658,7 @@ func _card_tooltip(card: PolicyCard) -> String:
 		lines.append("Targeted: hits the selected borough fully. The other boroughs get a smaller share.")
 	if card.ongoing:
 		lines.append("Ongoing: keeps helping every turn after you play it.")
-		if card.upkeep > 0:
+		if card.upkeep < 0:
 			lines.append("Brings in %d budget every turn." % -card.upkeep)
 	else:
 		lines.append("One-time: the effect happens once, right away.")

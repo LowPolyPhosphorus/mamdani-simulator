@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://57m0ugdjqub6"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Federal Grant Application"
+cost = 3
+citywide = true
+budget_change = 14
+gatekeeper = "Albany"
+gate_threshold = 50
+attitude_change = 1
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

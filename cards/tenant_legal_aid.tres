@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://b32n7mnge7l7a"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Tenant Legal Aid"
+cost = 8
+affordability_change = 7
+approval_change = 3
+gatekeeper = "Council"
+gate_threshold = 40
+attitude_change = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

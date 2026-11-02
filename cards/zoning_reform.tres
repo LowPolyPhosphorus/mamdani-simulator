@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bq1owf56uk5l6"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Zoning Reform"
+cost = 14
+citywide = true
+approval_change = -4
+gatekeeper = "Council"
+gate_threshold = 55
+attitude_change = -2
+ongoing = true
+upkeep = 1
+per_turn_affordability = 2
+synergy_with = "Community Land Trust"
+synergy_bonus = 5
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

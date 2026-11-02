@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://bwvv8im4x58ac"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Sell Surplus Property"
+cost = 0
+budget_change = 10
+approval_change = -2
+gatekeeper = "None"
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

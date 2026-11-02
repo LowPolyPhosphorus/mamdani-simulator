@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://cvmbsbdp06my0"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Commuter Rail Fare Discount"
+cost = 12
+affordability_change = 6
+ridership_change = 9
+gatekeeper = "MTA"
+gate_threshold = 50
+attitude_change = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

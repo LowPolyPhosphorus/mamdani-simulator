@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://b74xep5t7joor"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_grhnj"]
+
+[resource]
+script = ExtResource("1_grhnj")
+card_name = "Station Accessibility Program"
+cost = 16
+ridership_change = 8
+approval_change = 8
+gatekeeper = "MTA"
+gate_threshold = 40
+attitude_change = 2
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"

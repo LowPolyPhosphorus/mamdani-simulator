@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PolicyCard" format=3 uid="uid://blyua03r506r1"]
+
+[ext_resource type="Script" uid="uid://cbvjohpu8a0nq" path="res://policy_card.gd" id="1_81ot8"]
+
+[resource]
+script = ExtResource("1_81ot8")
+card_name = "Participatory Budgeting"
+cost = 6
+citywide = true
+gatekeeper = "Council"
+gate_threshold = 40
+attitude_change = 3
+ongoing = true
+upkeep = 1
+per_turn_approval = 1
+synergy_with = "Transparency Portal"
+synergy_bonus = 3
+metadata/_custom_type_script = "uid://cbvjohpu8a0nq"
