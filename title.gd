@@ -308,7 +308,7 @@ func _show_achievements() -> void:
 	panel.add_child(margin)
 	
 	var v := VBoxContainer.new()
-	v.add_theme_constant("separation", 8)
+	v.add_theme_constant_override("separation", 8)
 	margin.add_child(v)
 	
 	var heading := Label.new()
