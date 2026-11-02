@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_378le"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_aevsc"]
+
+[sub_resource type="Resource" id="Resource_aevsc"]
+script = ExtResource("1_aevsc")
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+choice_text = "Emergency repairs"
+budget_change = -8
+affordability_change = 4
+approval_change = 6
+
+[sub_resource type="Resource" id="Resource_pmv7t"]
+script = ExtResource("1_aevsc")
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+choice_text = "Hand out space heaters"
+budget_change = -2
+affordability_change = -2
+approval_change = -2
+
+[resource]
+script = ExtResource("1_378le")
+choice_a = SubResource("Resource_aevsc")
+choice_b = SubResource("Resource_pmv7t")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"
+title = "Boiler Outage in Public Housing"
+description = "Hundreds of apartments have no heat."
+borough = "Bronx"

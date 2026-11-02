@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="GameEvent" format=3]
+
+[ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_378le"]
+[ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_aevsc"]
+
+[sub_resource type="Resource" id="Resource_aevsc"]
+script = ExtResource("1_aevsc")
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+choice_text = "Restore hours"
+budget_change = -5
+affordability_change = 2
+approval_change = 5
+
+[sub_resource type="Resource" id="Resource_pmv7t"]
+script = ExtResource("1_aevsc")
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
+choice_text = "Keep the cuts"
+budget_change = 4
+approval_change = -4
+
+[resource]
+script = ExtResource("1_378le")
+choice_a = SubResource("Resource_aevsc")
+choice_b = SubResource("Resource_pmv7t")
+metadata/_custom_type_script = "uid://cg2hxciiaw77b"
+title = "Library Funding Fight"
+description = "Branches may have to cut their hours."
+borough = "Manhattan"
