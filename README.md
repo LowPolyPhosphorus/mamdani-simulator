@@ -15,6 +15,11 @@ play it: https://mamdani-simulator.lowpolyphosphor.us
 - demands, events, and borough issues come up each turn
 - your score is citywide approval, so dont let one borough rot
 
+## why on earth did i make this?
+
+- uh
+- mamdani hopecore
+
 ## features
 
 - three difficulties: easy, normal, and hard
