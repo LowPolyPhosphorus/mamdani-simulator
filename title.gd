@@ -31,7 +31,7 @@ func _ready() -> void:
 	start.pressed.connect(_show_difficulty)
 	box.add_child(start)
 	
-	var row := HBoxContainer.new()
+	var ach := Button.new(); ach.text = "Achievements"; ach.custom_minimum_size = Vector2(0, 40); ach.pressed.connect(_show_achievements); box.add_child(ach); var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
 	var help := Button.new()
@@ -279,3 +279,60 @@ func _on_mute_toggled(muted: bool, b: Button) -> void:
 	settings.load("user://settings.cfg")
 	settings.set_value("audio", "muted", muted)
 	settings.save("user://settings.cfg")
+
+
+var ach_overlay: Control
+
+func _show_achievements() -> void:
+	if ach_overlay != null:
+		return
+	ach_overlay = Control.new()
+	ach_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(ach_overlay)
+	
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ach_overlay.add_child(dim)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ach_overlay.add_child(center)
+	
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+	
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" +side, 24)
+	panel.add_child(margin)
+	
+	var v := VBoxContainer.new()
+	v.add_theme_constant("separation", 8)
+	margin.add_child(v)
+	
+	var heading := Label.new()
+	heading.add_theme_font_size_override("font_size", 28)
+	v.add_child(heading)
+	
+	var count := 0
+	for a in GameState.ACHIEVEMENTS:
+		var got: bool = GameState.is_unlocked(a[0])
+		if got:
+			count += 1
+		var item := Label.new()
+		item.text = "%s %s\n%s" % ["[x]" if got else "[ ]", a[1], a[2]]
+		item.custom_minimum_size = Vector2(440, 0)
+		item.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		item.modulate = Color(1, 1, 1, 1.0 if got else 0.5)
+		v.add_child(item)
+	heading.text = "Achievements (%d / %d)" % [count, GameState.ACHIEVEMENTS.size()]
+
+	var close := Button.new()
+	close.text = "Back"
+	close.pressed.connect(_close_achievements)
+	v.add_child(close)
+
+func _close_achievements() -> void:
+	ach_overlay.queue_free()
+	ach_overlay = null

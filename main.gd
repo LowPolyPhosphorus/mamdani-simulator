@@ -891,7 +891,7 @@ func _show_summary() -> void:
 	
 	v.add_child(HSeparator.new())
 	
-	var buttons := HBoxContainer.new()
+	_add_unlocked(v); var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	v.add_child(buttons)
 	
@@ -1195,3 +1195,14 @@ func _load_folder(path: String) -> Array:
 			if r != null:
 				out.append(r)
 	return out
+
+
+func _add_unlocked(parent: Node) -> void:
+	var fresh: Array = GameState.check_achievements(cards_enacted)
+	if fresh.is_empty():
+		return
+	parent.add_child(_label("ACHIVEMENTS UNLOCKED", 12, UITheme.MUTED))
+	for id in fresh:
+		for a in GameState.ACHIEVEMENTS:
+			if a[0] == id:
+				parent.add_child(_label("%s: %s" % [a[1], a[2]], 15, UITheme.GOOD))

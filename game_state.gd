@@ -379,3 +379,65 @@ func get_ending() -> String:
 	elif avg >= 50:
 		return "Re-elected, narrowly (average %d). %s" % [avg, carried]
 	return "The term ends and voters are unimpressed (average %d). %s" % [avg, carried]
+
+
+const ACH_PATH := "user://achievements.cfg"
+const ACHIEVEMENTS := [
+	["survivor", "Survivor", "Finish all 24 turns without being voted out."],
+	["landslide", "Landslide", "Finish with an average score of 70 or more"],
+	["every_borough", "Every Borough", "Carry all 5 boroughs"],
+	["hard_won", "Hard Hat", "Finish a term on Hard"],
+	["penny", "Penny Pincher", "Finish with 60 or more budget"],
+	["minimalist", "Minimalist", "Finish a term enacting 20 cards or fewer."],
+	["promises", "Promise Keeper", "Meet 8 demands in one term."],
+	["fixer", "Fixer", "Fix 10 issues in one term."],
+	["wonk", "Policy Wonk", "Enact 36 cards in one term."],
+	["beloved", "Beloved", "Reach 85 citywide approval."],
+]
+
+
+func _earned(cards: int) -> Array:
+	var ids: Array = []
+	var survived: bool = is_term_over() and approval > cfg["lose_approval"]
+	var avg: int = roundi((affordability + ridership + approval) / 3.0)
+	if survived:
+		ids.append("survivor")
+		if avg >= 70:
+			ids.append("landslide")
+		if boroughs_carried() == BOROUGHS.size():
+			ids.append("every_borough")
+		if difficulty == "hard":
+			ids.append("hard_won")
+		if budget >= 60:
+			ids.append("penny")
+		if cards <= 20:
+			ids.append("minimalist")
+	if demands_met >= 8:
+		ids.append("promises")
+	if issues_fixed >= 10:
+		ids.append("fixer")
+	if cards >= 36:
+		ids.append("wonk")
+	if maxi(peak_approval, approval) >= 85:
+		ids.append("beloved")
+	return ids
+
+
+func check_achievements(cards: int) -> Array:
+	var  save := ConfigFile.new()
+	save.load(ACH_PATH)
+	var fresh: Array = []
+	for id in _earned(cards):
+		if not save.get_value("unlocked", id, false):
+			save.set_value("unlocked", id, true)
+			fresh.append(id)
+	if not fresh.is_empty():
+		save.save(ACH_PATH)
+	return fresh
+
+
+func is_unlocked(id: String) -> bool:
+	var save := ConfigFile.new()
+	if save.load(ACH_PATH) != OK:
+		return false
+	return save.get_value("unlocked", id, false)
