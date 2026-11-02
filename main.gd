@@ -52,6 +52,9 @@ var enacting := false
 
 
 func _ready() -> void:
+	deck.assign(_load_folder("res://cards"))
+	events.assign(_load_folder("res://events"))
+	print("Loaded ", deck.size(), " cards and ", events.size(), " events")
 	for child in get_children():
 		child.queue_free()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1180,3 +1183,15 @@ func _sfx(sound: String) -> void:
 func _on_log_sound(text: String) -> void:
 	if "blocked" in text or "feel ignored" in text or "lapsed" in text:
 		_sfx("bad")
+
+
+func _load_folder(path: String) -> Array:
+	var out := []
+	for f in DirAccess.get_files_at(path):
+		if f.ends_with(".remap"):
+			f = f.trim_suffix(".remap")
+		if f.ends_with(".tres") or f.ends_with(".res"):
+			var r = load(path + "/" + f)
+			if r != null:
+				out.append(r)
+	return out
