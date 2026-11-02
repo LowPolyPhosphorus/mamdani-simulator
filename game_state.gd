@@ -121,7 +121,7 @@ func reset() -> void:
 	active_policies.clear()
 	active_demands.clear()
 	attitudes = {"MTA": 50, "Council": 50, "Albany": 40}
-	active_issues.clear()
+	active_issues.clear(); demands_met = 0; demands_failed = 0; issues_fixed = 0; peak_approval = approval
 
 
 func city_average(stat: String) -> int:
@@ -294,7 +294,7 @@ func _fix_issues(card: PolicyCard, scope: String) -> void:
 			continue
 		var gain: int = card.get(entry["meter"] + "_change")
 		if gain > 0:
-			active_issues.erase(entry)
+			active_issues.erase(entry); issues_fixed += 1
 			log_message.emit("Fixed %s in %s." % [entry["name"], entry["borough"]])
 
 func neediest_borough() -> String:
@@ -319,7 +319,7 @@ func end_turn() -> void:
 	_resolve_demands()
 	_run_issues()
 	_spawn_issue()
-	turn_changed.emit()
+	peak_approval = maxi(peak_approval, approval); turn_changed.emit()
 
 
 func _run_ongoing_policies() -> void:
@@ -345,11 +345,11 @@ func _resolve_demands() -> void:
 		entry["turns_left"] -= 1
 		if get_value(demand.meter, borough) >= demand.threshold:
 			active_demands.erase(entry)
-			_change("approval", demand.reward, borough)
+			_change("approval", demand.reward, borough); demands_met += 1
 			log_message.emit("%s%s are happy (+%d approval)." % [demand.group_name, where, demand.reward])
 		elif entry["turns_left"] <= 0:
 			active_demands.erase(entry)
-			_change("approval", -demand.penalty, borough)
+			_change("approval", -demand.penalty, borough); demands_failed += 1
 			log_message.emit("%s%s feel ignored (-%d approval)." % [demand.group_name, where, demand.penalty])
 
 

@@ -45,7 +45,7 @@ func _ready() -> void:
 	quit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quit.pressed.connect(get_tree().quit)
 	quit.visible = not OS.has_feature("web")
-	row.add_child(quit)
+	row.add_child(quit); row.add_child(_make_mute_button())
 	
 	var disclaimer := Label.new()
 	disclaimer.text = "not affiliated or endorsed by any real person or office."
@@ -256,3 +256,26 @@ func _best_text(key: String) -> String:
 		return ""
 	var best: int =save.get_value("best", key, -1)
 	return "" if best < 0 else "\nBest approval: %d" % best
+
+
+func _make_mute_button() -> Button:
+	var b := Button.new()
+	b.toggle_mode = true
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var settings := ConfigFile.new()
+	settings.load("user://settings.cfg")
+	var muted: bool = settings.get_value("audio", "muted", false)
+	AudioServer.set_bus_mute(0, muted)
+	b.button_pressed = muted
+	b.text = "Sound: Off" if muted else "Sound: On"
+	b.toggled.connect(_on_mute_toggled.bind(b))
+	return b
+
+
+func _on_mute_toggled(muted: bool, b: Button) -> void:
+	AudioServer.set_bus_mute(0, muted)
+	b.text = "Sound: Off" if muted else "Sound: On"
+	var settings := ConfigFile.new()
+	settings.load("user://settings.cfg")
+	settings.set_value("audio", "muted", muted)
+	settings.save("user://settings.cfg")

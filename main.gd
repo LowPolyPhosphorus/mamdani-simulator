@@ -65,6 +65,8 @@ func _ready() -> void:
 	GameState.meters_changed.connect(_update_ui)
 	GameState.turn_changed.connect(_draw_hand)
 	GameState.turn_changed.connect(_maybe_trigger_event)
+	GameState.turn_changed.connect(_autosave)
+	GameState.turn_changed.connect(_sfx.bind("turn"))
 	GameState.meters_changed.connect(_refresh_hand)
 	GameState.log_message.connect(_on_log_message)
 	if GameState.pending_load:
@@ -602,7 +604,7 @@ func _refresh_hand() -> void:
 
 func _on_card_pressed(card: PolicyCard, panel: PanelContainer) -> void:
 	if GameState.play_card(card, GameState.target_borough):
-		cards_enacted += 1
+		cards_enacted += 1; _sfx("enact")
 		panel.set_meta("played", true)
 		_refresh_hand()
 
@@ -610,7 +612,7 @@ func _on_card_pressed(card: PolicyCard, panel: PanelContainer) -> void:
 # -Log, events, restart-
 
 func _on_log_message(text: String) -> void:
-	log_lines.append(text)
+	log_lines.append(text); _on_log_sound(text)
 	if log_lines.size() > 6:
 		log_lines.pop_front()
 	log_label.text = "\n".join(log_lines)
@@ -861,7 +863,7 @@ func _show_summary() -> void:
 	
 	left.add_child(_label("RUN", 12, UITheme.MUTED))
 	_summary_row(left, "Turns served", "%d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS])
-	_summary_row(left, "Cards enacted", str(cards_enacted))
+	_summary_row(left, "Cards enacted", str(cards_enacted)); _summary_row(left, "Peak approval", str(maxi(GameState.peak_approval, GameState.approval))); _summary_row(left, "Demands met", "%d / %d" % [GameState.demands_met, GameState.demands_met + GameState.demands_failed]); _summary_row(left, "Issues fixed", str(GameState.issues_fixed))
 	
 	var now_approval: int = GameState.get_value("approval")
 	if now_approval > prev_best:
@@ -1153,7 +1155,7 @@ func _load_game() -> bool:
 		_add_card(card)
 		hand_box.get_child(hand_box.get_child_count() - 1).set_meta("played", e["played"])
 	
-	cards_enacted = data.get("cards_enacted", 0)
+	cards_enacted = data.get("cards_enacted", 0); GameState.demands_met = data.get("demands_met", 0); GameState.demands_failed = data.get("demands_failed", 0); GameState.issues_fixed = data.get("issues_fixed", 0); GameState.peak_approval = data.get("peak_approval", GameState.approval)
 	_update_ui()
 	_refresh_hand()
 	return true
@@ -1162,3 +1164,19 @@ func _load_game() -> bool:
 func _delete_save() -> void:
 	if FileAccess.file_exists(RUN_SAVE_PATH):
 		DirAccess.remove_absolute(RUN_SAVE_PATH)
+
+
+func _sfx(sound: String) -> void:
+	var path := "res://sfx/%s.wav" % sound
+	if not ResourceLoader.exists(path):
+		return
+	var p := AudioStreamPlayer.new()
+	p.stream = load(path)
+	p.finished.connect(p.queue_free)
+	add_child(p)
+	p.play()
+
+
+func _on_log_sound(text: String) -> void:
+	if "blocked" in text or "feel ignored" in text or "lapsed" in text:
+		_sfx("bad")
