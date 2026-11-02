@@ -343,7 +343,7 @@ func _update_ui() -> void:
 	_update_demands()
 	_update_issues()
 	if GameState.is_game_over() and not game_ended:
-		game_ended = true
+		game_ended = true; _delete_save()
 		end_turn_button.disabled = true
 		_show_summary()
 
