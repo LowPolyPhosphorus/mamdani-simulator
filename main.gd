@@ -38,6 +38,8 @@ var borough_map: Control
 var summary_overlay: Control
 var pause_overlay: Control
 var cards_enacted := 0
+var recent_events: Array = []
+var last_hand: Array = []
 
 var city_bars := {}
 var city_labels := {}
@@ -487,7 +489,12 @@ func _draw_hand() -> void:
 	var pool := deck.filter(func(c): return not (c.citywide and c.ongoing and GameState.is_active(c, "")))
 	pool.shuffle()
 	var hand_count := 3 if GameState.has_mod("skeleton") else HAND_SIZE
-	for card in pool.slice(0, hand_count):
+	var fresh := pool.filter(func(c): return not last_hand.has(c))
+	if fresh.size() >= hand_count:
+		pool = fresh
+	var picked := pool.slice(0, hand_count)
+	last_hand = picked
+	for card in picked:
 		_add_card(card)
 	_refresh_hand()
 
@@ -628,7 +635,13 @@ func _maybe_trigger_event() -> void:
 		return
 	if randf() > EVENT_CHANCE and not GameState.has_mod("crisis"):
 		return
+	var fresh_events := events.filter(func(e): return not recent_events.has(e))
+	if fresh_events.is_empty():
+		fresh_events = events
 	current_event = events.pick_random()
+	recent_events.append(current_event)
+	if recent_events.size() > mini(8, events.size() - 1):
+		recent_events.pop_front()
 	_show_event_popup()
 
 
