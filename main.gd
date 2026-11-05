@@ -235,7 +235,7 @@ func _add_attitude_row(parent: Node, body: String) -> void:
 	head.add_child(value_label)
 	var lobby_button := Button.new()
 	lobby_button.text = "Lobby"
-	lobby_button.tooltip_text = "Costs 1 action and %d budget. Raises their attitude by %d." % [GameState.LOBBY_COST, GameState.LOBBY_GAIN]
+	lobby_button.tooltip_text = "Costs 1 action and %d budget. Raises their attitude by %d." % [GameState.LOBBY_COST, GameState.lobby_gain(body)]
 	lobby_button.pressed.connect(func(): GameState.lobby(body))
 	head.add_child(lobby_button)
 	lobby_buttons[body] = lobby_button
@@ -268,7 +268,7 @@ func _build_map_panel() -> Control:
 	borough_map.clip_contents = true
 	box.get_parent().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	borough_map.picked.connect(_on_map_picked)
-	var hint := _label("Targeted cards hit the selected borough fully. The others get %d%%." % roundi(GameState.cfg["spillover"] * 100), 12, UITheme.MUTED)
+	var hint := _label("Targeted cards hit the selected borough fully. The others get %d%%." % roundi(GameState.spillover() * 100), 12, UITheme.MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
 	return box.get_parent()
@@ -335,10 +335,10 @@ func _build_dialogs() -> void:
 func _update_ui() -> void:
 	turn_label.text = "TURN %d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS]
 	budget_label.text = "Budget %d" % GameState.budget
-	var net: int = GameState.cfg["income"] - _total_upkeep()
+	var net: int = GameState.income() - _total_upkeep()
 	net_label.text = "Net %s / turn" % _signed_num(net)
 	net_label.add_theme_color_override("font_color", UITheme.GOOD if net >= 0 else UITheme.BAD)
-	actions_label.text = "Actions %d / %d" % [GameState.actions_left, GameState.cfg["actions"]]
+	actions_label.text = "Actions %d / %d" % [GameState.actions_left, GameState.actions_per_turn()]
 	_update_city()
 	_update_attitudes()
 	_update_boroughs()
@@ -380,7 +380,7 @@ func _update_policies() -> void:
 			money = "upkeep %d" % card.upkeep
 		else:
 			money = "income +%d" % -card.upkeep
-		var label := _label("%s\n%s | %s" % [card.card_name, where, money], 14)
+		var label := _label("%s\n%s | %s" % [card.card_name, where, money + _expiry_text(entry)], 14)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		_add_wrapped(policies_box, label)
 
@@ -485,7 +485,8 @@ func _draw_hand() -> void:
 	_clear(hand_box)
 	var pool := deck.filter(func(c): return not (c.citywide and c.ongoing and GameState.is_active(c, "")))
 	pool.shuffle()
-	for card in pool.slice(0, HAND_SIZE):
+	var hand_count := 3 if GameState.has_mod("skeleton") else HAND_SIZE
+	for card in pool.slice(0, hand_count):
 		_add_card(card)
 	_refresh_hand()
 
@@ -591,7 +592,7 @@ func _refresh_hand() -> void:
 			elif status == "blocked":
 				note = "will be blocked"
 				col = UITheme.BAD
-			gate.text = "Needs %s %d+ (now %d): %s" % [card.gatekeeper, card.gate_threshold, mood, note]
+			gate.text = "Needs %s %d+ (now %d): %s" % [card.gatekeeper, GameState.gate_threshold_for(card), mood, note]
 			gate.add_theme_color_override("font_color", col)
 		var played: bool = panel.get_meta("played", false)
 		tag.text = "CITYWIDE" if card.citywide else "TARGET: " + GameState.target_borough.to_upper()
@@ -622,7 +623,9 @@ func _on_log_message(text: String) -> void:
 
 
 func _maybe_trigger_event() -> void:
-	if events.is_empty() or GameState.is_game_over() or randf() > EVENT_CHANCE:
+	if events.is_empty() or GameState.is_game_over():
+		return
+	if randf() > EVENT_CHANCE and not GameState.has_mod("crisis"):
 		return
 	current_event = events.pick_random()
 	_show_event_popup()
@@ -778,7 +781,7 @@ func _pick_event(chose_a: bool) -> void:
 	_autosave()
 
 func _on_map_picked(b: String) -> void:
-	_on_borough_pressed(b)
+	_on_map_pick_checked(b)
 
 func _update_boroughs() -> void:
 	var approvals := {}
@@ -947,7 +950,7 @@ const SAVE_PATH := "user://best.cfg"
 
 func _difficulty_key() -> String:
 	var d = GameState.get("difficulty")
-	return "default" if d == null else str(d)
+	return ("default" if d == null else str(d)) + ("+mods" if not GameState.modifiers.is_empty() else "")
 
 
 func _record_best() -> int:
@@ -1090,7 +1093,7 @@ func _save_game() -> void:
 		hand.append({"card": c.card_name, "played": panel.get_meta("played", false)})
 	var policies := []
 	for e in GameState.active_policies:
-		policies.append({"card": e["card"].card_name, "borough": e["borough"]})
+		policies.append({"card": e["card"].card_name, "borough": e["borough"], "age": e.get("age", 0)})
 	var demands := []
 	for e in GameState.active_demands:
 		demands.append({"demand": _demand_key(e["demand"]), "turns_left": e["turns_left"], "borough": e["borough"]})
@@ -1098,7 +1101,9 @@ func _save_game() -> void:
 	for e in GameState.active_issues:
 		issues.append(e.duplicate())
 	var data := {
-		"version": 1,
+		"version": 1, 
+		"modifiers": GameState.modifiers.duplicate(),
+		"banned": GameState.banned_borough,
 		"difficulty": GameState.difficulty,
 		"turn": GameState.turn,
 		"budget": GameState.budget,
@@ -1126,6 +1131,8 @@ func _load_game() -> bool:
 		return false
 	
 	GameState.set_difficulty(data["difficulty"])
+	GameState.modifiers = data.get("modifiers", [])
+	GameState.banned_borough = data.get("banned", "")
 	GameState.intro_shown = true
 	GameState.turn = data["turn"]
 	GameState.budget = data["budget"]
@@ -1138,7 +1145,7 @@ func _load_game() -> bool:
 	for e in data["policies"]:
 		var card := _find_card(e["card"])
 		if card != null:
-			GameState.active_policies.append({"card": card, "borough": e["borough"]})
+			GameState.active_policies.append({"card": card, "borough": e["borough"], "age": e.get("age", 0)})
 	
 	GameState.active_demands.clear()
 	for e in data["demands"]:
@@ -1158,7 +1165,11 @@ func _load_game() -> bool:
 		_add_card(card)
 		hand_box.get_child(hand_box.get_child_count() - 1).set_meta("played", e["played"])
 	
-	cards_enacted = data.get("cards_enacted", 0); GameState.demands_met = data.get("demands_met", 0); GameState.demands_failed = data.get("demands_failed", 0); GameState.issues_fixed = data.get("issues_fixed", 0); GameState.peak_approval = data.get("peak_approval", GameState.approval)
+	cards_enacted = data.get("cards_enacted", 0)
+	GameState.demands_met = data.get("demands_met", 0)
+	GameState.demands_failed = data.get("demands_failed", 0)
+	GameState.issues_fixed = data.get("issues_fixed", 0)
+	GameState.peak_approval = data.get("peak_approval", GameState.approval)
 	_update_ui()
 	_refresh_hand()
 	return true
@@ -1206,3 +1217,16 @@ func _add_unlocked(parent: Node) -> void:
 		for a in GameState.ACHIEVEMENTS:
 			if a[0] == id:
 				parent.add_child(_label("%s: %s" % [a[1], a[2]], 15, UITheme.GOOD))
+
+
+func _expiry_text(entry: Dictionary) -> String:
+	if not GameState.has_mod("expiring"):
+		return ""
+	return " | %d turns left" % maxi(0, GameState.EXPIRY_TURNS - int(entry.get("age", 0)))
+
+
+func _on_map_pick_checked(b: String) -> void:
+	if GameState.has_mod("pride") and b == GameState.banned_borough:
+		_on_log_message("You targeted %s last turn. Pick a different borough." % b)
+		return
+	_on_borough_pressed(b)

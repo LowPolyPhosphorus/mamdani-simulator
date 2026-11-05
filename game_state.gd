@@ -99,7 +99,7 @@ func _drift(stat: String, borough: String = "") -> int:
 			amount = -cfg["drift_app"]
 	if borough != "" and get_value(stat, borough) >= HEALTHY:
 		amount = int(amount * cfg["health_drift"])
-	return amount
+	return amount - (1 if has_mod("winter") else 0)
 
 func change_attitude(body: String, amount: int) -> void:
 	if not attitudes.has(body):
@@ -115,13 +115,14 @@ func _ready() -> void:
 func reset() -> void:
 	turn = 1
 	budget = 50
-	actions_left = cfg["actions"]
+	actions_left = actions_per_turn()
 	target_borough = BOROUGHS[0]
 	stats = START.duplicate(true)
 	active_policies.clear()
 	active_demands.clear()
 	attitudes = {"MTA": 50, "Council": 50, "Albany": 40}
 	active_issues.clear(); demands_met = 0; demands_failed = 0; issues_fixed = 0; peak_approval = approval
+	banned_borough = ""
 
 
 func city_average(stat: String) -> int:
@@ -143,12 +144,12 @@ func get_value(meter: String, borough: String = "") -> int:
 # others get cfg["spillover"] of it. An empty borough means every borough gets it all.
 func _change(meter: String, amount: int, borough: String = "") -> void:
 	if meter == "budget":
-		budget = clampi(budget + amount, 0, 100)
+		budget = clampi(budget + amount, 0, budget_cap())
 		return
 	for b in BOROUGHS:
 		var share := 1.0
 		if borough != "" and b != borough:
-			share = cfg["spillover"]
+			share = spillover()
 		stats[b][meter] = clampi(stats[b][meter] + roundi(amount * share), 0, 100)
 
 
@@ -180,9 +181,9 @@ func gate_status(card: PolicyCard) -> String:
 	if card.gatekeeper == "None":
 		return "pass"
 	var mood: int = attitudes[card.gatekeeper]
-	if mood >= card.gate_threshold:
+	if mood >= gate_threshold_for(card):
 		return "pass"
-	if mood >= card.gate_threshold - GATE_WEAK_MARGIN:
+	if mood >= gate_threshold_for(card) - GATE_WEAK_MARGIN:
 		return "weak"
 	return "blocked"
 
@@ -193,7 +194,7 @@ func _drift_attitudes() -> void:
 
 
 func can_lobby() -> bool:
-	return actions_left > 0 and budget >= LOBBY_COST and not is_game_over()
+	return actions_left > 0 and budget >= LOBBY_COST and not is_game_over() and not has_mod("no_lobby")
 
 
 func lobby(body: String) -> void:
@@ -201,8 +202,8 @@ func lobby(body: String) -> void:
 		return
 	actions_left -= 1
 	_change("budget", -LOBBY_COST)
-	change_attitude(body, LOBBY_GAIN)
-	log_message.emit("Lobbied the %s (+%d attitude)." % [body, LOBBY_GAIN])
+	change_attitude(body, lobby_gain(body))
+	log_message.emit("Lobbied the %s (+%d attitude)." % [body, lobby_gain(body)])
 	meters_changed.emit()
 
 
@@ -231,7 +232,7 @@ func play_card(card: PolicyCard, borough: String) -> bool:
 
 	var mult := 0.5 if status == "weak" else 1.0
 	if card.ongoing:
-		active_policies.append({"card": card, "borough": scope})
+		active_policies.append({"card": card, "borough": scope, "age": 0})
 	_change("budget", -card.cost + card.budget_change)
 	_change("affordability", roundi(card.affordability_change * mult), scope)
 	_change("ridership", roundi(card.ridership_change * mult), scope)
@@ -300,7 +301,7 @@ func _fix_issues(card: PolicyCard, scope: String) -> void:
 func neediest_borough() -> String:
 	var worst := ""
 	var worst_score := 999.0
-	for b in stats.keys():
+	for b in stats.keys().filter(func(k): return k != banned_borough):
 		var s: float = (stats[b]["affordability"] + stats[b]["ridership"] + stats[b]["approval"]) / 3.0
 		if s < worst_score:
 			worst_score = s
@@ -309,8 +310,8 @@ func neediest_borough() -> String:
 
 func end_turn() -> void:
 	turn += 1
-	actions_left = cfg["actions"]
-	_change("budget", cfg["income"])
+	actions_left = actions_per_turn()
+	_change("budget", income())
 	for b in BOROUGHS:
 		for stat in STATS:
 			stats[b][stat] = clampi(stats[b][stat] + _drift(stat, b), 0, 100)
@@ -319,6 +320,7 @@ func end_turn() -> void:
 	_resolve_demands()
 	_run_issues()
 	_spawn_issue()
+	_end_turn_mods()
 	peak_approval = maxi(peak_approval, approval); turn_changed.emit()
 
 
@@ -345,12 +347,12 @@ func _resolve_demands() -> void:
 		entry["turns_left"] -= 1
 		if get_value(demand.meter, borough) >= demand.threshold:
 			active_demands.erase(entry)
-			_change("approval", demand.reward, borough); demands_met += 1
-			log_message.emit("%s%s are happy (+%d approval)." % [demand.group_name, where, demand.reward])
+			_change("approval", demand_reward(demand), borough)
+			log_message.emit("%s%s are happy (+%d approval)." % [demand.group_name, where, demand_reward(demand)])
 		elif entry["turns_left"] <= 0:
 			active_demands.erase(entry)
-			_change("approval", -demand.penalty, borough); demands_failed += 1
-			log_message.emit("%s%s feel ignored (-%d approval)." % [demand.group_name, where, demand.penalty])
+			_change("approval", -demand_penalty(demand), borough)
+			log_message.emit("%s%s feel ignored (-%d approval)." % [demand.group_name, where, demand_penalty(demand)])
 
 
 func is_term_over() -> bool:
@@ -358,7 +360,7 @@ func is_term_over() -> bool:
 
 
 func is_game_over() -> bool:
-	return approval <= cfg["lose_approval"] or is_term_over()
+	return approval <= lose_threshold() or is_term_over()
 
 
 func boroughs_carried() -> int:
@@ -370,7 +372,7 @@ func boroughs_carried() -> int:
 
 
 func get_ending() -> String:
-	if approval <= cfg["lose_approval"]:
+	if approval <= lose_threshold():
 		return "Voted out. Citywide approval collapsed."
 	var avg: int = roundi((affordability + ridership + approval) / 3.0)
 	var carried := "You carried %d of %d boroughs." % [boroughs_carried(), BOROUGHS.size()]
@@ -392,16 +394,32 @@ const ACHIEVEMENTS := [
 	["promises", "Promise Keeper", "Meet 8 demands in one term."],
 	["fixer", "Fixer", "Fix 10 issues in one term."],
 	["wonk", "Policy Wonk", "Enact 36 cards in one term."],
-	["beloved", "Beloved", "Reach 85 citywide approval."],
+	["beloved", "Beloved", "Reach 85 citywide approval."], 
+	["underdog", "Underdog", "Finish a term with a challenge modifier on."], 
+	["mod_no_lobby", "Above Board", "Finish a term with No Lobbying on."], 
+	["mod_albany", "Albany Who?", "Finish a term with Albany Hates You on."], 
+	["mod_broke", "Shoestring", "Finish a term with Shoestring Budget on."], 
+	["mod_winter", "Winter Survivor", "Finish a term with Rough Winter on."], 
+	["mod_short", "One and Done", "Finish a term with One Action Only on."],
+	["mod_council", "Council Whisperer", "Finish a term with Hostile Council on."],
+	["mod_crisis", "Crisis Manager", "Finish a term with Constant Crisis on."],
+	["mod_austerity", "Tight Belt", "Finish a term with Austerity on."],
+	["mod_glass_jaw", "Iron Chin", "Finish a term with Glass Jaw on."],
+	["mod_tunnel", "Eyes on the prize", "Finish a term with Tunnel Vision on."],
+	["mod_skeleton", "Small Hand", "Finish a term with Skeleton Crew on."],
+	["mod_demanding", "Hard to Please", "Finish a term with Demanding Public on."],
+	["mod_expiring", "Beat the Clock", "Finish a term with Expiring Policies on."],
+	["mod_pride", "Spread the Love", "Finish a term with Borough Pride on."],
+	["mod_midterms", "Midterm Master", "Finish a term with Midterms on."],
 ]
 
 
 func _earned(cards: int) -> Array:
 	var ids: Array = []
-	var survived: bool = is_term_over() and approval > cfg["lose_approval"]
+	var survived: bool = is_term_over() and approval > lose_threshold()
 	var avg: int = roundi((affordability + ridership + approval) / 3.0)
 	if survived:
-		ids.append("survivor")
+		ids.append("survivor"); ids.append_array(["underdog"] if not modifiers.is_empty() else []); ids.append_array(modifiers.map(func(m): return "mod_" + m))
 		if avg >= 70:
 			ids.append("landslide")
 		if boroughs_carried() == BOROUGHS.size():
@@ -441,3 +459,102 @@ func is_unlocked(id: String) -> bool:
 	if save.load(ACH_PATH) != OK:
 		return false
 	return save.get_value("unlocked", id, false)
+
+
+var modifiers: Array = []
+
+const MODIFIERS := [
+	["no_lobby", "No Lobbying", "You can't lobby gatekeepers."],
+	["albany", "Albany Hates You", "Lobbying Albany is only half as effective."],
+	["broke", "Shoestring Budget", "Your budget can never go above 50."],
+	["winter", "Rough Winter", "Every stat drifts down 1 extra point per turn."],
+	["short", "One Action Short", "One fewer action each turn (min 1)."],
+	["council", "Hostile Council", "Council's approval thresholds are 10 higher."],
+	["crisis", "Constant Crisis", "An event happens every turn."],
+	["austerity", "Austerity", "Your income is 3 lower each turn."],
+	["glass_jaw", "Glass Jaw", "You're voted out at 30 approval or below."],
+	["tunnel", "Tunnel Vision", "Cards only affect the borough you target."],
+	["skeleton", "Skeleton Crew", "You only draw 3 cards each turn."],
+	["demanding", "Demanding Public", "Demand rewards are halved and penalties doubled."],
+	["expiring", "Expiring Policies", "Ongoing policies expire after 6 turns."],
+	["pride", "Borough Pride", "You can't target the same borough two turns in a row."],
+	["midterms", "Midterms", "After turn 12, approval under 50 costs you 12 approval everywhere."],
+]
+
+
+func has_mod(id: String) -> bool:
+	return modifiers.has(id)
+
+
+func actions_per_turn() -> int:
+	return 1 if has_mod("short") else int(cfg["actions"])
+
+
+func budget_cap() -> int:
+	return 50 if has_mod("broke") else 100
+
+
+func lobby_gain(body: String) -> int:
+	if body == "Albany" and has_mod("albany"):
+		return roundi(LOBBY_GAIN * 0.5)
+	return LOBBY_GAIN
+
+
+const EXPIRY_TURNS := 6
+const MIDTERM_TURN := 12
+const MIDTERM_PENALTY := 12
+
+var banned_borough := ""
+
+
+func gate_threshold_for(card: PolicyCard) -> int:
+	var t: int = card.get("gate_threshold")
+	if card.gatekeeper == "Council" and has_mod("council"):
+		t += 10
+	return t
+
+
+func income() -> int:
+	return int(cfg.get("income")) - (3 if has_mod("austerity") else 0)
+
+
+func lose_threshold() -> int:
+	var t: int = cfg.get("lose_approval")
+	return maxi(t, 30) if has_mod("glass_jaw") else t
+
+
+func spillover() -> float:
+	return 0.0 if has_mod("tunnel") else float(cfg.get("spillover"))
+
+
+func demand_reward(d: Demand) -> int:
+	var r: int = d.reward
+	return maxi(1, roundi(r * 0.5)) if has_mod("demanding") else r
+
+
+func demand_penalty(d: Demand) -> int:
+	var p: int = d.penalty
+	return p * 2 if has_mod("demanding") else p
+
+
+func _end_turn_mods() -> void:
+	if has_mod("pride"):
+		banned_borough = target_borough
+		target_borough = neediest_borough()
+	else:
+		banned_borough = ""
+	if has_mod("expiring"):
+		for entry in active_policies.duplicate():
+			entry["age"] = int(entry.get("age", 0)) + 1
+			if entry["age"] >= EXPIRY_TURNS:
+				active_policies.erase(entry)
+				log_message.emit("%s expired." % entry["card"].card_name)
+	if has_mod("midterms"):
+		if turn == MIDTERM_TURN - 1:
+			log_message.emit("Midterms come after turn %d. Keep citywide approval at 50 or higher." % MIDTERM_TURN)
+		elif turn == MIDTERM_TURN + 1:
+			if approval < 50:
+				_change("approval", -MIDTERM_PENALTY)
+				log_message.emit("Midterms: voters are unhappy. -%d approval everywhere." % MIDTERM_PENALTY)
+			else:
+				log_message.emit("Midterms: you held on. No penalty.")

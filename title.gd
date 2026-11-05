@@ -233,7 +233,7 @@ func _show_difficulty() -> void:
 		b.pressed.connect(_start.bind(d[1]))
 		v.add_child(b)
 	
-	var back := Button.new()
+	_add_mod_toggles(v); var back := Button.new()
 	back.text = "Back"
 	back.pressed.connect(_close_difficulty)
 	v.add_child(back)
@@ -248,6 +248,7 @@ func _continue() -> void:
 		return
 	var data = save.get_value("run", "data", {})
 	GameState.pending_load = true
+	GameState.modifiers = data.get("modifiers", [])
 	_start(str(data.get("difficulty", "normal")))
 
 func _best_text(key: String) -> String:
@@ -336,3 +337,41 @@ func _show_achievements() -> void:
 func _close_achievements() -> void:
 	ach_overlay.queue_free()
 	ach_overlay = null
+
+func _add_mod_toggles(parent: Node) -> void:
+	var head := Label.new()
+	head.text = "Challenge modifiers (optional)"
+	head.add_theme_font_size_override("font_size", 16)
+	parent.add_child(head)
+	
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(490, 240)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	parent.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	
+	for m in GameState.MODIFIERS:
+		var b := Button.new()
+		b.toggle_mode = true
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size = Vector2(460, 56)
+		b.button_pressed = GameState.modifiers.has(m[0])
+		_style_mod_button(b, m, b.button_pressed)
+		b.toggled.connect(_on_mod_toggled.bind(m[0], b, m))
+		list.add_child(b)
+
+
+func _style_mod_button(b: Button, m: Array, on: bool) -> void:
+	b.text = "%s %s \n%s" % ["[x]" if on else "[ ]", m[1], m[2]]
+	b.modulate = Color(0.65, 1.0, 0.65) if on else Color.WHITE
+
+
+func _on_mod_toggled(on: bool, id: String, b: Button, m: Array) -> void:
+	if on and not GameState.modifiers.has(id):
+		GameState.modifiers.append(id)
+	elif not on:
+		GameState.modifiers.erase(id)
+	_style_mod_button(b, m, on)
