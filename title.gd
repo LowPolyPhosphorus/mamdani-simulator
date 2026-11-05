@@ -339,8 +339,13 @@ func _close_achievements() -> void:
 	ach_overlay = null
 
 func _add_mod_toggles(parent: Node) -> void:
+	var open := 0
+	for m in GameState.MODIFIERS:
+		if GameState.mod_unlocked(m[0]):
+			open += 1
+	
 	var head := Label.new()
-	head.text = "Challenge modifiers (optional)"
+	head.text = "Challenge modifiers (%d / %d unlocked)" % [open, GameState.MODIFIERS.size()]
 	head.add_theme_font_size_override("font_size", 16)
 	parent.add_child(head)
 	
@@ -358,9 +363,15 @@ func _add_mod_toggles(parent: Node) -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.custom_minimum_size = Vector2(460, 56)
-		b.button_pressed = GameState.modifiers.has(m[0])
-		_style_mod_button(b, m, b.button_pressed)
-		b.toggled.connect(_on_mod_toggled.bind(m[0], b, m))
+		if GameState.mod_unlocked(m[0]):
+			b.button_pressed = GameState.modifiers.has(m[0])
+			_style_mod_button(b, m, b.button_pressed)
+			b.toggled.connect(_on_mod_toggled.bind(m[0], b, m))
+		else:
+			GameState.modifiers.erase(m[0])
+			b.disabled = true
+			b.custom_minimum_size.y = 72
+			b.text = "[locked] %s\nUnlock: %s" % [m[1], GameState.achievement_text(GameState.MOD_UNLOCKS[m[0]])]
 		list.add_child(b)
 
 

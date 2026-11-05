@@ -4,6 +4,7 @@ const HAND_SIZE := 5
 const LOW_THRESHOLD := 30
 const EVENT_CHANCE := 0.5
 const MAX_DEMANDS := 3
+const EVENT_COOLDOWN := 2.0
 const DEMAND_CHANCE := 0.7
 const METERS := ["budget", "affordability", "ridership", "approval"]
 const MAP_LAYOUT := {
@@ -756,7 +757,16 @@ func _show_event_popup() -> void:
 	heading.add_theme_font_size_override("font_size", 26)
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	heading.custom_minimum_size = Vector2(460, 0)
-	v.add_child(heading)
+	var head_row := HBoxContainer.new()
+	v.add_child(head_row)
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head_row.add_child(heading)
+	var pie := CooldownPie.new()
+	pie.duration = EVENT_COOLDOWN
+	pie.left = EVENT_COOLDOWN
+	pie.custom_minimum_size = Vector2(28, 28)
+	pie.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	head_row.add_child(pie)
 
 	var body := Label.new()
 	body.text = current_event.description
@@ -772,6 +782,8 @@ func _show_event_popup() -> void:
 		b.custom_minimum_size = Vector2(460, 64)
 		b.pressed.connect(_pick_event.bind(i == 0))
 		v.add_child(b)
+	
+	_lock_buttons(v, EVENT_COOLDOWN)
 
 func _pick_event(chose_a: bool) -> void:
 	if event_overlay != null:
@@ -1217,6 +1229,9 @@ func _add_unlocked(parent: Node) -> void:
 		for a in GameState.ACHIEVEMENTS:
 			if a[0] == id:
 				parent.add_child(_label("%s: %s" % [a[1], a[2]], 15, UITheme.GOOD))
+	for m in GameState.MODIFIERS:
+		if GameState.MOD_UNLOCKS.has(m[0]) and fresh.has(GameState.MOD_UNLOCKS[m[0]]):
+			parent.add_child(_label("New modifier unlocked: %s" % m[1], 15, UITheme.ACCENT))
 
 
 func _expiry_text(entry: Dictionary) -> String:
@@ -1230,3 +1245,40 @@ func _on_map_pick_checked(b: String) -> void:
 		_on_log_message("You targeted %s last turn. Pick a different borough." % b)
 		return
 	_on_borough_pressed(b)
+
+
+func _lock_buttons(root: Node, seconds: float = 3.0) -> void:
+	var locked: Array = []
+	for b in root.find_children("*", "Button", true, false):
+		if not b.disabled:
+			locked.append(b)
+			b.disabled = true
+	await get_tree().create_timer(seconds).timeout
+	for b in locked:
+		if is_instance_valid(b):
+			b.disabled = false
+
+
+class CooldownPie extends Control:
+	var duration := 2.0
+	var left := 2.0
+	
+	func _process(delta: float) -> void:
+		left = maxf(0.0, left - delta)
+		queue_redraw()
+		if left <= 0.0:
+			set_process(false)
+	
+	func _draw() -> void:
+		var c := size / 2.0
+		var r := minf(size.x, size.y) / 2.0
+		draw_circle(c, r, Color(1, 1, 1, 0.15))
+		var f := left / duration
+		if f < 0.02:
+			return
+		var pts := PackedVector2Array([c])
+		var steps := 48
+		for i in steps + 1:
+			var a := -PI / 2.0 + TAU * f * i / steps
+			pts.append(c + Vector2(cos(a), sin(a)) * r)
+		draw_colored_polygon(pts, Color(1, 1, 1, 0.9))

@@ -558,3 +558,32 @@ func _end_turn_mods() -> void:
 				log_message.emit("Midterms: voters are unhappy. -%d approval everywhere." % MIDTERM_PENALTY)
 			else:
 				log_message.emit("Midterms: you held on. No penalty.")
+
+
+const UNLOCK_ALL := false 
+
+const MOD_UNLOCKS := {
+	"winter": "survivor",
+	"crisis": "survivor",
+	"tunnel": "survivor",
+	"albany": "every_borough",
+	"council": "promises",
+	"demanding": "underdog",
+	"expiring": "underdog",
+	"pride": "underdog",
+	"glass_jaw": "hard_won",
+	"midterms": "landslide",
+}
+
+
+func mod_unlocked(id: String) -> bool:
+	if UNLOCK_ALL or not MOD_UNLOCKS.has(id):
+		return true
+	return is_unlocked(MOD_UNLOCKS[id])
+
+
+func achievement_text(id: String) -> String:
+	for a in ACHIEVEMENTS:
+		if a[0] == id:
+			return "%s: %s" % [a[1], a[2]]
+	return id
