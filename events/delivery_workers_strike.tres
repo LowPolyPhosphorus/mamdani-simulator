@@ -1,28 +1,27 @@
-[gd_resource type="Resource" script_class="GameEvent" format=3]
+[gd_resource type="Resource" script_class="GameEvent" format=3 uid="uid://dhr0p3873m17r"]
 
 [ext_resource type="Script" uid="uid://cg2hxciiaw77b" path="res://game_event.gd" id="1_378le"]
 [ext_resource type="Script" uid="uid://kx23jnysoxoj" path="res://event_choice.gd" id="1_aevsc"]
 
 [sub_resource type="Resource" id="Resource_aevsc"]
 script = ExtResource("1_aevsc")
-metadata/_custom_type_script = "uid://kx23jnysoxoj"
 choice_text = "Back minimum pay"
 budget_change = -3
 affordability_change = 4
 approval_change = 3
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
 
 [sub_resource type="Resource" id="Resource_pmv7t"]
 script = ExtResource("1_aevsc")
-metadata/_custom_type_script = "uid://kx23jnysoxoj"
 choice_text = "Stay out of it"
 affordability_change = -2
 approval_change = -3
+metadata/_custom_type_script = "uid://kx23jnysoxoj"
 
 [resource]
 script = ExtResource("1_378le")
+title = "Delivery Workers Strike"
+description = "App delivery workers walk off the job."
 choice_a = SubResource("Resource_aevsc")
 choice_b = SubResource("Resource_pmv7t")
 metadata/_custom_type_script = "uid://cg2hxciiaw77b"
-title = "Delivery Workers Strike"
-description = "App delivery workers walk off the job."
-borough = "Any"

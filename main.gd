@@ -6,6 +6,8 @@ const EVENT_CHANCE := 0.5
 const MAX_DEMANDS := 3
 const EVENT_COOLDOWN := 2.0
 const DEMAND_CHANCE := 0.7
+const STARTER_SIZE : = 12
+const REWARD_EVERY := 4
 const METERS := ["budget", "affordability", "ridership", "approval"]
 const MAP_LAYOUT := {
 	"Manhattan": Rect2(150, 8, 120, 170),
@@ -40,6 +42,11 @@ var pause_overlay: Control
 var cards_enacted := 0
 var recent_events: Array = []
 var last_hand: Array = []
+var owned: Array[PolicyCard] = []
+var reward_overlay: Control
+var ticker_label: Label
+var ticker_tween: Tween
+var _ticker_lines: Array[String] = []
 
 var city_bars := {}
 var city_labels := {}
@@ -63,15 +70,18 @@ func _ready() -> void:
 		child.queue_free()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UITheme.build()
+	_fade_in()
 	_build_layout()
 	_build_dialogs()
 	end_turn_button.pressed.connect(GameState.end_turn)
 	GameState.turn_changed.connect(_apply_auto_target)
 	GameState.turn_changed.connect(_spawn_demand)
 	GameState.turn_changed.connect(_update_ui)
+	GameState.turn_changed.connect(_turn_banner)
 	GameState.meters_changed.connect(_update_ui)
 	GameState.turn_changed.connect(_draw_hand)
 	GameState.turn_changed.connect(_maybe_trigger_event)
+	GameState.turn_changed.connect(_maybe_reward)
 	GameState.turn_changed.connect(_autosave)
 	GameState.turn_changed.connect(_sfx.bind("turn"))
 	GameState.meters_changed.connect(_refresh_hand)
@@ -81,6 +91,7 @@ func _ready() -> void:
 		if _load_game():
 			return
 	_spawn_demand()
+	_init_owned()
 	_spawn_demand()
 	_update_ui()
 	_draw_hand()
@@ -112,6 +123,7 @@ func _build_layout() -> void:
 	middle.add_child(_build_right_panel())
 
 	root_box.add_child(_build_hand_panel())
+	root_box.add_child(_build_ticker())
 
 
 func _make_panel(title: String, min_width: int = 0) -> VBoxContainer:
@@ -215,10 +227,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		if pause_overlay != null:
 			_close_pause()
-		elif event_overlay == null and summary_overlay == null and not game_ended:
+		elif event_overlay == null and summary_overlay == null and reward_overlay == null and not game_ended:
 			_show_pause()
 		return
-	if pause_overlay != null or enacting or event_overlay != null or summary_overlay != null or game_ended:
+	if pause_overlay != null or enacting or event_overlay != null or summary_overlay != null or reward_overlay != null or game_ended:
 		return
 	if event.keycode == KEY_N:
 		_target_neediest()
@@ -490,7 +502,7 @@ func _spawn_demand() -> void:
 
 func _draw_hand() -> void:
 	_clear(hand_box)
-	var pool := deck.filter(func(c): return not (c.citywide and c.ongoing and GameState.is_active(c, "")))
+	var pool := owned.filter(func(c): return not (c.citywide and c.ongoing and GameState.is_active(c, "")))
 	pool.shuffle()
 	var hand_count := 3 if GameState.has_mod("skeleton") else HAND_SIZE
 	var fresh := pool.filter(func(c): return not last_hand.has(c))
@@ -628,6 +640,7 @@ func _on_card_pressed(card: PolicyCard, panel: PanelContainer) -> void:
 # -Log, events, restart-
 
 func _on_log_message(text: String) -> void:
+	_ticker_lines.append(text)
 	log_lines.append(text); _on_log_sound(text)
 	if log_lines.size() > 6:
 		log_lines.pop_front()
@@ -697,7 +710,7 @@ func _set_tooltip_deep(node: Node, text: String) -> void:
 		_set_tooltip_deep(child, text)
 
 func _process(_delta: float) -> void:
-	if tip_panel == null:
+	if tip_panel == null or reward_overlay != null:
 		return
 	if event_overlay != null or summary_overlay != null or pause_overlay != null:
 		tip_panel.visible = false
@@ -790,11 +803,15 @@ func _show_event_popup() -> void:
 	var choices := [current_event.choice_a, current_event.choice_b]
 	for i in choices.size():
 		var c: EventChoice = choices[i]
+		if c == null:
+			push_warning("Event '%s' is missing choice %d" % [current_event.title, i])
+			continue
 		var b := Button.new()
 		b.text = c.choice_text + "\n" + _choice_preview(c)
 		b.custom_minimum_size = Vector2(460, 64)
 		b.pressed.connect(_pick_event.bind(i == 0))
 		v.add_child(b)
+		
 	
 	_lock_buttons(v, EVENT_COOLDOWN)
 
@@ -944,9 +961,9 @@ func _show_summary() -> void:
 	buttons.add_child(menu)
 
 
-func _summary_row(parent: Node, name: String, value: String, col: Color = UITheme.TEXT) -> void:
+func _summary_row(parent: Node, label_text: String, value: String, col: Color = UITheme.TEXT) -> void:
 	var row := HBoxContainer.new()
-	var n := _label(name, 15)
+	var n := _label(label_text, 15)
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(n)
 	row.add_child(_label(value, 15, col))
@@ -1158,6 +1175,7 @@ func _save_game() -> void:
 		"issues_fixed": GameState.issues_fixed,
 		"peak_approval": GameState.peak_approval,
 		"approval_history": GameState.approval_history.duplicate(),
+		"owned": owned.map(func(c): return c.card_name),
 	}
 	var save := ConfigFile.new()
 	save.set_value("run", "data", data)
@@ -1213,6 +1231,13 @@ func _load_game() -> bool:
 	GameState.issues_fixed = data.get("issues_fixed", 0)
 	GameState.peak_approval = data.get("peak_approval", GameState.approval)
 	GameState.approval_history.assign(data.get("approval_history", [GameState.approval]))
+	owned.clear()
+	for n in data.get("owned", []):
+		var oc := _find_card(n)
+		if oc != null:
+			owned.append(oc)
+	if owned.is_empty():
+		owned.assign(deck)
 	_update_ui()
 	_refresh_hand()
 	return true
@@ -1349,3 +1374,132 @@ func _float_text(anchor: Control, delta: int) -> void:
 	t.tween_property(l, "position:y", l.position.y - 30, 0.9)
 	t.tween_property(l, "modulate:a", 0.0, 0.5).set_delay(0.4)
 	t.chain().tween_callback(l.queue_free)
+
+
+func _init_owned() -> void:
+	var pool := deck.duplicate()
+	pool.shuffle()
+	owned.assign(pool.slice(0, STARTER_SIZE))
+
+
+func _maybe_reward() -> void:
+	if GameState.is_game_over() or GameState.turn > GameState.MAX_TURNS:
+		return
+	if (GameState.turn - 1) % REWARD_EVERY != 0:
+		return
+	while event_overlay != null:
+		await get_tree().process_frame
+	_show_reward()
+
+
+func _show_reward() -> void:
+	if reward_overlay != null:
+		return
+	var options := deck.filter(func(c): return not owned.has(c))
+	if options.is_empty():
+		return
+	options.shuffle()
+	options = options.slice(0, 3)
+	
+	reward_overlay = Control.new()
+	reward_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(reward_overlay)
+	
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	reward_overlay.add_child(dim)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	reward_overlay.add_child(center)
+	
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+	
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	margin.add_child(v)
+	v.add_child(_label("Add a card to your deck", 26, UITheme.ACCENT))
+	
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	for c in options:
+		var b := Button.new()
+		var text := "%s\nCost %d" % [c.card_name, c.cost]
+		if c.ongoing:
+			text += " | Ongoing"
+		b.text = text + "\n\n" + c.description
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size = Vector2(220, 180)
+		b.pressed.connect(_pick_reward.bind(c))
+		row.add_child(b)
+	
+	var skip := Button.new()
+	skip.text = "Skip"
+	skip.pressed.connect(_pick_reward.bind(null))
+	v.add_child(skip)
+
+
+func _pick_reward(card: PolicyCard) -> void:
+	if card != null:
+		owned.append(card)
+		_on_log_message("Added %s to your deck." % card.card_name)
+	if reward_overlay != null:
+		reward_overlay.queue_free()
+		reward_overlay = null
+	_autosave()
+
+
+func _fade_in() -> void:
+	var f := ColorRect.new()
+	f.color = Color.BLACK
+	f.set_anchors_preset(Control.PRESET_FULL_RECT)
+	f.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	f.z_index = 300
+	add_child(f)
+	var t := create_tween()
+	t.tween_property(f, "modulate:a", 0.0, 0.3)
+	t.tween_callback(f.queue_free)
+
+
+func _build_ticker() -> Control:
+	var strip := Control.new()
+	strip.custom_minimum_size = Vector2(0, 32)
+	strip.clip_contents = true
+	var bg := ColorRect.new()
+	bg.color = Color("#C0392B")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	strip.add_child(bg)
+	ticker_label = _label("", 16, Color.WHITE)
+	ticker_label.custom_maximum_size.y = 32
+	strip.add_child(ticker_label)
+	return strip
+
+
+func _turn_banner() -> void:
+	if GameState.is_game_over() or ticker_label == null:
+		return
+	var parts: Array[String] = ["TURN %d" % GameState.turn]
+	var net: int = GameState.income() - _total_upkeep()
+	parts.append("BUDGET %s" % _signed_num(net))
+	var h := GameState.approval_history
+	if h.size() >= 2:
+		parts.append("APPROVAL %s" % _signed_num(h[h.size() - 1] - h[h.size() - 2]))
+	parts.append(_ticker_lines)
+	_ticker_lines.clear()
+	ticker_label.text = "   +++   ".join(parts)
+	ticker_label.reset_size()
+	var start: float = ticker_label.get_parent().size.x
+	var end := -ticker_label.size.x
+	ticker_label.position = Vector2(start, 0)
+	if ticker_tween != null:
+		ticker_tween.kill()
+	ticker_tween = create_tween()
+	ticker_tween.tween_property(ticker_label, "position:x", end, (start - end) / 120.0)

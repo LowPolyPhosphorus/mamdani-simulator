@@ -63,6 +63,14 @@ func _ready() -> void:
 func _start(d: String) -> void:
 	GameState.set_difficulty(d)
 	GameState.reset()
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 0)
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.z_index = 300
+	add_child(fade)
+	var t := create_tween()
+	t.tween_property(fade, "color:a", 1.0, 0.3)
+	await t.finished
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 const HOW_TO_PLAY := """GOAL
