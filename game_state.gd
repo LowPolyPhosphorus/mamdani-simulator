@@ -58,6 +58,7 @@ var demands_met := 0
 var demands_failed := 0
 var issues_fixed := 0
 var peak_approval := 0
+var approval_history: Array[int] = []
 var cfg: Dictionary = PRESETS["normal"]
 
 func set_difficulty(d: String) -> void:
@@ -123,6 +124,7 @@ func reset() -> void:
 	attitudes = {"MTA": 50, "Council": 50, "Albany": 40}
 	active_issues.clear(); demands_met = 0; demands_failed = 0; issues_fixed = 0; peak_approval = approval
 	banned_borough = ""
+	approval_history = [approval]
 
 
 func city_average(stat: String) -> int:
@@ -321,6 +323,7 @@ func end_turn() -> void:
 	_run_issues()
 	_spawn_issue()
 	_end_turn_mods()
+	approval_history.append(approval)
 	peak_approval = maxi(peak_approval, approval); turn_changed.emit()
 
 

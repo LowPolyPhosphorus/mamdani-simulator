@@ -31,6 +31,12 @@ func _ready() -> void:
 	start.pressed.connect(_show_difficulty)
 	box.add_child(start)
 	
+	var settings_btn := Button.new()
+	settings_btn.text = "Settings"
+	settings_btn.custom_minimum_size = Vector2(0, 40)
+	settings_btn.pressed.connect(func(): Settings.open(self))
+	box.add_child(settings_btn)
+	
 	var ach := Button.new(); ach.text = "Achievements"; ach.custom_minimum_size = Vector2(0, 40); ach.pressed.connect(_show_achievements); box.add_child(ach); var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
@@ -45,7 +51,7 @@ func _ready() -> void:
 	quit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quit.pressed.connect(get_tree().quit)
 	quit.visible = not OS.has_feature("web")
-	row.add_child(quit); row.add_child(_make_mute_button())
+	row.add_child(quit)
 	
 	var disclaimer := Label.new()
 	disclaimer.text = "not affiliated or endorsed by any real person or office."
@@ -67,14 +73,14 @@ EACH TURN
 2. Play cards from your hand. Each one costs budget and one action.
 3. Click End Turn when you're out of actions or budget.
 
-TARGETTING
+TARGETING
 A target card hits the borough you selected fully. The other boroughs only get a share of the effect. Citywide cards hit every borough fully.
 
 POLICIES
-Ongoing policies keep helping each turn, but they charge upkeep. If you cant pay it, the policy lapses and approval drops.
+Ongoing policies keep helping each turn, but they charge upkeep. If you can't pay it, the policy lapses and approval drops.
 
 TIPS
-Fix the weakest borough first, sincing losing happens on the citywide average. Don't spend all your budget in one turn, buecause upkeep is due every turn."""
+Fix the weakest borough first, since losing happens on the citywide average. Don't spend all your budget in one turn, because upkeep is due every turn."""
 
 var help_overlay: Control
 
@@ -257,29 +263,6 @@ func _best_text(key: String) -> String:
 		return ""
 	var best: int =save.get_value("best", key, -1)
 	return "" if best < 0 else "\nBest approval: %d" % best
-
-
-func _make_mute_button() -> Button:
-	var b := Button.new()
-	b.toggle_mode = true
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var settings := ConfigFile.new()
-	settings.load("user://settings.cfg")
-	var muted: bool = settings.get_value("audio", "muted", false)
-	AudioServer.set_bus_mute(0, muted)
-	b.button_pressed = muted
-	b.text = "Sound: Off" if muted else "Sound: On"
-	b.toggled.connect(_on_mute_toggled.bind(b))
-	return b
-
-
-func _on_mute_toggled(muted: bool, b: Button) -> void:
-	AudioServer.set_bus_mute(0, muted)
-	b.text = "Sound: Off" if muted else "Sound: On"
-	var settings := ConfigFile.new()
-	settings.load("user://settings.cfg")
-	settings.set_value("audio", "muted", muted)
-	settings.save("user://settings.cfg")
 
 
 var ach_overlay: Control

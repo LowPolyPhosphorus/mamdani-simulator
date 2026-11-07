@@ -52,6 +52,7 @@ var current_event: GameEvent
 var game_ended := false
 var auto_target := false
 var enacting := false
+var _last_city := {}
 
 
 func _ready() -> void:
@@ -368,6 +369,9 @@ func _update_city() -> void:
 		var value := GameState.get_value(meter)
 		city_labels[meter].text = str(value)
 		_tween_bar(city_bars[meter], value)
+		if _last_city.has(meter) and _last_city[meter] != value:
+			_float_text(city_labels[meter], value - _last_city[meter])
+		_last_city[meter] = value
 
 
 func _update_policies() -> void:
@@ -638,7 +642,7 @@ func _maybe_trigger_event() -> void:
 	var fresh_events := events.filter(func(e): return not recent_events.has(e))
 	if fresh_events.is_empty():
 		fresh_events = events
-	current_event = events.pick_random()
+	current_event = fresh_events.pick_random()
 	recent_events.append(current_event)
 	if recent_events.size() > mini(8, events.size() - 1):
 		recent_events.pop_front()
@@ -700,11 +704,7 @@ func _process(_delta: float) -> void:
 		return
 	var mouse := get_global_mouse_position()
 	var text := ""
-	for panel in hand_box.get_children():
-		if panel is Control and panel.get_global_rect().has_point(mouse):
-			text = panel.get_meta("tip", "")
-			break
-	if text == "" and borough_map != null and borough_map.hover != "":
+	if borough_map != null and borough_map.hover != "":
 		text = _borough_info(borough_map.hover)
 	if text == "":
 		tip_panel.visible = false
@@ -918,8 +918,14 @@ func _show_summary() -> void:
 		_summary_row(right, body, str(mood), _score_color(mood))
 	
 	v.add_child(HSeparator.new())
-	
-	_add_unlocked(v); var buttons := HBoxContainer.new()
+
+	v.add_child(_label("APPROVAL OVER TERM", 12, UITheme.MUTED))
+	var graph := ApprovalGraph.new()
+	graph.values = GameState.approval_history
+	graph.lose_line = GameState.lose_threshold()
+	v.add_child(graph)
+	_add_unlocked(v)
+	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	v.add_child(buttons)
 	
@@ -1053,9 +1059,15 @@ func _show_pause() -> void:
 	resume.custom_minimum_size = Vector2(280, 48)
 	resume.pressed.connect(_close_pause)
 	v.add_child(resume)
+	
+	var settings_btn := Button.new()
+	settings_btn.text = "Settings"
+	settings_btn.custom_minimum_size = Vector2(280, 48)
+	settings_btn.pressed.connect(func(): Settings.open(self))
+	v.add_child(settings_btn)
 
 	var save_quit := Button.new()
-	save_quit.text = "Save and quit to tile" 
+	save_quit.text = "Save and quit to title" 
 	save_quit.custom_minimum_size = Vector2(280, 48)
 	save_quit.pressed.connect(_save_and_quit)
 	v.add_child(save_quit)
@@ -1140,7 +1152,12 @@ func _save_game() -> void:
 		"demands": demands,
 		"issues": issues,
 		"hand": hand,
-		"card_enacted": cards_enacted,
+		"cards_enacted": cards_enacted,
+		"demands_met": GameState.demands_met,
+		"demands_failed": GameState.demands_failed,
+		"issues_fixed": GameState.issues_fixed,
+		"peak_approval": GameState.peak_approval,
+		"approval_history": GameState.approval_history.duplicate(),
 	}
 	var save := ConfigFile.new()
 	save.set_value("run", "data", data)
@@ -1195,6 +1212,7 @@ func _load_game() -> bool:
 	GameState.demands_failed = data.get("demands_failed", 0)
 	GameState.issues_fixed = data.get("issues_fixed", 0)
 	GameState.peak_approval = data.get("peak_approval", GameState.approval)
+	GameState.approval_history.assign(data.get("approval_history", [GameState.approval]))
 	_update_ui()
 	_refresh_hand()
 	return true
@@ -1237,7 +1255,7 @@ func _add_unlocked(parent: Node) -> void:
 	var fresh: Array = GameState.check_achievements(cards_enacted)
 	if fresh.is_empty():
 		return
-	parent.add_child(_label("ACHIVEMENTS UNLOCKED", 12, UITheme.MUTED))
+	parent.add_child(_label("ACHIEVEMENTS UNLOCKED", 12, UITheme.MUTED))
 	for id in fresh:
 		for a in GameState.ACHIEVEMENTS:
 			if a[0] == id:
@@ -1295,3 +1313,39 @@ class CooldownPie extends Control:
 			var a := -PI / 2.0 + TAU * f * i / steps
 			pts.append(c + Vector2(cos(a), sin(a)) * r)
 		draw_colored_polygon(pts, Color(1, 1, 1, 0.9))
+
+
+class ApprovalGraph extends Control:
+	var values: Array = []
+	var lose_line := 15
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(540, 90)
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.05))
+		draw_line(Vector2(0, h * 0.5), Vector2(w, h * 0.5), Color(1, 1, 1, 0.2))
+		var ly := h - h * lose_line / 100.0
+		draw_line(Vector2(0, ly), Vector2(w, ly), Color(UITheme.BAD, 0.5))
+		if values.size() < 2:
+			return
+		var pts := PackedVector2Array()
+		for i in values.size():
+			var x := w * i / float(values.size() - 1)
+			var y := h - h * clampf(values[i] / 100.0, 0.0, 1.0)
+			pts.append(Vector2(x, y))
+		draw_polyline(pts, UITheme.GOOD, 2.0)
+
+
+func _float_text(anchor: Control, delta: int) -> void:
+	var l := _label(_signed_num(delta), 18, UITheme.GOOD if delta > 0 else UITheme.BAD)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.z_index = 100
+	add_child(l)
+	l.global_position = anchor.global_position + Vector2(anchor.size.x + 8, -4)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(l, "position:y", l.position.y - 30, 0.9)
+	t.tween_property(l, "modulate:a", 0.0, 0.5).set_delay(0.4)
+	t.chain().tween_callback(l.queue_free)
