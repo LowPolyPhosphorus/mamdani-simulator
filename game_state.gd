@@ -357,10 +357,12 @@ func _resolve_demands() -> void:
 		if get_value(demand.meter, borough) >= demand.threshold:
 			active_demands.erase(entry)
 			_change("approval", demand_reward(demand), borough)
+			demands_met += 1
 			log_message.emit("%s%s are happy (+%d approval)." % [demand.group_name, where, demand_reward(demand)])
 		elif entry["turns_left"] <= 0:
 			active_demands.erase(entry)
 			_change("approval", -demand_penalty(demand), borough)
+			demands_failed += 1
 			log_message.emit("%s%s feel ignored (-%d approval)." % [demand.group_name, where, demand_penalty(demand)])
 
 
