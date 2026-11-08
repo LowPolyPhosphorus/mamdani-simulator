@@ -95,9 +95,9 @@ func _drift(stat: String, borough: String = "") -> int:
 		"affordability":
 			amount = -cfg["drift_aff"]
 		"ridership":
-			amount = -cfg["drift_rid"]
+			amount = mini(0, -cfg["drift_rid"] + (1 if has_advisor("transit") else 0))
 		_:
-			amount = -cfg["drift_app"]
+			amount = mini(0, -cfg["drift_rid"] + (1 if has_advisor("press") else 0))
 	if borough != "" and get_value(stat, borough) >= HEALTHY:
 		amount = int(amount * cfg["health_drift"])
 	return amount - (1 if has_mod("winter") else 0)
@@ -125,6 +125,8 @@ func reset() -> void:
 	active_issues.clear(); demands_met = 0; demands_failed = 0; issues_fixed = 0; peak_approval = approval
 	banned_borough = ""
 	approval_history = [approval]
+	advisors.clear()
+	cooldowns.clear()
 
 
 func city_average(stat: String) -> int:
@@ -322,6 +324,7 @@ func end_turn() -> void:
 	_resolve_demands()
 	_run_issues()
 	_spawn_issue()
+	_tick_cooldowns()
 	_end_turn_mods()
 	approval_history.append(approval)
 	peak_approval = maxi(peak_approval, approval); turn_changed.emit()
@@ -485,12 +488,58 @@ const MODIFIERS := [
 ]
 
 
+const ABILITIES := {
+	"hawk": ["Audit", "+15 budget.", 4],
+	"organizer": ["Rally", "+6 approval in the targeted borough.", 3],
+	"transit": ["Emergency Service", "+8 ridership in the targeted borough.", 3],
+	"fixer": ["Rapid Repair", "Fixes the oldest issue.", 4],
+	"whisperer": ["Backroom Deal", "+10 attitude with all gatekeepers.", 5],
+	"press": ["Press Conference", "+4 approval citywide.", 4],
+	"lobbyist": ["Free Lobby", "+8 attitude with your lowest gatekeeper.", 3],
+	"strategist": ["Extra Push", "+1 action this turn.", 5],
+}
+
+var cooldowns := {}
+
+
+const ADVISORS := [
+	["hawk", "Budget Hawk", "+2 income every turn."],
+	["organizer", "Community Organizer", "Demand rewards are 50% bigger."],
+	["transit", "Transit Chief", "Ridership drifts down 1 less per turn."],
+	["fixer", "City Fixer", "Issues drain 1 less per turn."],
+	["whisperer", "Gatekeeper Whisperer", "All gatekeeper thresholds are 5 lower."],
+	["press", "Press Secretary", "Approval drifts down 1 less per turn."],
+	["lobbyist", "Veteran Lobbyist", "Lobbying raises attitude by 4 more."],
+	["strategist", "Chief Strategist", "+1 action on every 3rd turn."],
+]
+
+var advisors: Array = []
+
+
+func has_advisor(id: String) -> bool:
+	return advisors.has(id)
+
+
+func advisor_text(id: String) -> String:
+	for a in ADVISORS:
+		if a[0] == id:
+			return "%s: %s" % [a[1], a[2]]
+	return id
+
+
+func issue_drain() -> int:
+	return ISSUE_DRAIN - (1 if has_advisor("fixer") else 0)
+
+
 func has_mod(id: String) -> bool:
 	return modifiers.has(id)
 
 
 func actions_per_turn() -> int:
-	return 1 if has_mod("short") else int(cfg["actions"])
+	var n: int = 1 if has_mod("short") else int(cfg["actions"])
+	if has_advisor("strategist") and turn % 3 == 0:
+		n += 1
+	return n
 
 
 func budget_cap() -> int:
@@ -498,9 +547,10 @@ func budget_cap() -> int:
 
 
 func lobby_gain(body: String) -> int:
+	var g := LOBBY_GAIN + (4 if has_advisor("lobbyist") else 0)
 	if body == "Albany" and has_mod("albany"):
-		return roundi(LOBBY_GAIN * 0.5)
-	return LOBBY_GAIN
+		return roundi(g * 0.5)
+	return g
 
 
 const EXPIRY_TURNS := 6
@@ -514,11 +564,13 @@ func gate_threshold_for(card: PolicyCard) -> int:
 	var t: int = card.get("gate_threshold")
 	if card.gatekeeper == "Council" and has_mod("council"):
 		t += 10
+	if has_advisor("whisperer"):
+		t -= 5
 	return t
 
 
 func income() -> int:
-	return int(cfg.get("income")) - (3 if has_mod("austerity") else 0)
+	return int(cfg.get("income")) - (3 if has_mod("austerity") else 0) + (2 if has_advisor("hawk") else 0)
 
 
 func lose_threshold() -> int:
@@ -532,6 +584,8 @@ func spillover() -> float:
 
 func demand_reward(d: Demand) -> int:
 	var r: int = d.reward
+	if has_advisor("organizer"):
+		r = roundi(r * 1.5)
 	return maxi(1, roundi(r * 0.5)) if has_mod("demanding") else r
 
 
@@ -590,3 +644,49 @@ func achievement_text(id: String) -> String:
 		if a[0] == id:
 			return "%s: %s" % [a[1], a[2]]
 	return id
+
+
+func _tick_cooldowns() -> void:
+	for id in cooldowns.keys():
+		cooldowns[id] = maxi(0, int(cooldowns[id]) - 1)
+
+
+func can_use_ability(id: String) -> bool:
+	return has_advisor(id) and int(cooldowns.get(id, 0)) <= 0 and not is_game_over()
+
+
+func use_ability(id: String) -> bool:
+	if not can_use_ability(id):
+		return false
+	match id:
+		"hawk":
+			_change("budget", 15)
+		"organizer":
+			_change("approval", 6, target_borough)
+		"transit":
+			_change("ridership", 8, target_borough)
+		"fixer":
+			if active_issues.is_empty():
+				log_message.emit("No issues to fix.")
+				return false
+			var issue: Dictionary = active_issues[0]
+			active_issues.remove_at(0)
+			issues_fixed += 1
+			log_message.emit("Fixed %s in %s." % [issue["name"], issue["borough"]])
+		"whisperer":
+			for body in GATEKEEPERS:
+				change_attitude(body, 10)
+		"press":
+			_change("approval", 4)
+		"lobbyist":
+			var lowest: String = GATEKEEPERS[0]
+			for body in GATEKEEPERS:
+				if attitudes[body] < attitudes[lowest]:
+					lowest = body
+			change_attitude(lowest, 8)
+		"strategist":
+			actions_left += 1
+	cooldowns[id] = ABILITIES[id][2]
+	log_message.emit("%s used %s." % [advisor_text(id).split(":")[0], ABILITIES[id][0]])
+	meters_changed.emit()
+	return true
