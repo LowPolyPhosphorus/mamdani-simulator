@@ -1700,11 +1700,17 @@ func _pump_popups() -> void:
 	_pumping = true
 	while not _popup_queue.is_empty():
 		while _any_popup():
+			if game_ended or not is_inside_tree():
+				_popup_queue.clear()
+				_pumping = false
+				return
 			await get_tree().process_frame
-		if game_ended:
+		if game_ended or not is_inside_tree():
 			_popup_queue.clear()
 			break
 		var next: Callable = _popup_queue.pop_front()
 		next.call()
+		if not is_inside_tree():
+			break
 		await get_tree().process_frame
 	_pumping = false
