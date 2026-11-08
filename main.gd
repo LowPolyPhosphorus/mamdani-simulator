@@ -201,20 +201,39 @@ func _build_top_bar() -> Control:
 
 
 func _build_left_panel() -> Control:
-	var box := _make_panel("Citywide", 290)
+	var box := _make_panel("", 290)
+	
+	var tabs := TabContainer.new()
+	box.add_child(tabs)
+	
+	var city_tab := VBoxContainer.new()
+	city_tab.name = "Citywide"
+	city_tab.add_theme_constant_override("seperation", 8)
 	for meter in METERS:
-		_add_city_row(box, meter)
-	box.add_child(_label("GATEKEEPERS", 12, UITheme.MUTED))
+		_add_city_row(city_tab, meter)
+	tabs.add_child(city_tab)
+	
+	var gate_tab := VBoxContainer.new()
+	gate_tab.name = "Gatekeepers"
+	gate_tab.add_theme_constant_override("separation", 8)
 	for body in GameState.GATEKEEPERS:
-		_add_attitude_row(box, body)
+		_add_attitude_row(gate_tab, body)
+	tabs.add_child(gate_tab)
+	
 	box.add_child(_label("CABINET", 12, UITheme.MUTED))
 	advisors_box = VBoxContainer.new()
-	advisors_box.add_theme_constant_override("separation", 4)
-	box.add_child(advisors_box)
+	advisors_box.add_theme_constant_override("seperation", 8)
+	var cab_scroll := _scroll_wrap(advisors_box)
+	cab_scroll.custom_minimum_size.y = 90
+	box.add_child(cab_scroll)
+	
 	box.add_child(_label("ACTIVE POLICIES", 12, UITheme.MUTED))
 	policies_box = VBoxContainer.new()
-	policies_box.add_theme_constant_override("separation", 6)
-	box.add_child(_scroll_wrap(policies_box))
+	policies_box.add_theme_constant_override("seperation", 6)
+	var pol_scroll := _scroll_wrap(policies_box)
+	pol_scroll.custom_minimum_size.y = 90
+	box.add_child(pol_scroll)
+	
 	return box.get_parent()
 
 func _on_auto_target_toggled(pressed: bool) -> void:
@@ -418,7 +437,7 @@ func _update_city() -> void:
 		var value := GameState.get_value(meter)
 		city_labels[meter].text = str(value)
 		_tween_bar(city_bars[meter], value)
-		if _last_city.has(meter) and _last_city[meter] != value:
+		if _last_city.has(meter) and _last_city[meter] != value and city_labels[meter].is_visible_in_tree():
 			_float_text(city_labels[meter], value - _last_city[meter])
 		_last_city[meter] = value
 
