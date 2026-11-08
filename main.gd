@@ -1219,6 +1219,8 @@ func _save_game() -> void:
 		"approval_history": GameState.approval_history.duplicate(),
 		"owned": owned.map(func(c): return c.card_name),
 		"cooldowns": GameState.cooldowns.duplicate(),
+		"loyalty": GameState.loyalty.duplicate(),
+		"advisors": GameState.advisors.duplicate(),
 	}
 	var save := ConfigFile.new()
 	save.set_value("run", "data", data)
@@ -1242,7 +1244,12 @@ func _load_game() -> bool:
 	GameState.actions_left = data["actions_left"]
 	GameState.target_borough = data["target_borough"]
 	GameState.stats = data["stats"]
-	GameState.cooldowns = data.get("cooldowns", {})
+	GameState.advisors = data.get("advisors", [])
+	GameState.cooldowns = data.get("cooldowns", [])
+	GameState.loyalty = data.get("loyalty", {})
+	for id in GameState.advisors:
+		if not GameState.loyalty.has(id):
+			GameState.loyalty[id] = GameState.LOYALTY_START
 	GameState.attitudes = data["attitudes"]
 	
 	GameState.active_policies.clear()
@@ -1574,7 +1581,9 @@ func _update_advisors() -> void:
 	for id in GameState.advisors:
 		var item := VBoxContainer.new()
 		item.add_theme_constant_override("separation", 2)
-		_add_wrapped(advisors_box, _label(GameState.advisor_text(id), 13))
+		var loy: int = int(GameState.loyalty.get(id, GameState.LOYALTY_START))
+		var loy_col := UITheme.GOOD if loy >= GameState.LOYALTY_RISK else (UITheme.MID_FILL if loy >= GameState.LOYALTY_WEAK else UITheme.BAD)
+		_add_wrapped(item, _label("%s  [Loyalty %d]" % [GameState.advisor_text(id), loy], 13, loy_col))
 		var ab: Array = GameState.ABILITIES[id]
 		var cd: int = int(GameState.cooldowns.get(id, 0))
 		var b := Button.new()
@@ -1592,7 +1601,9 @@ func _use_ability(id: String) -> void:
 
 
 func _maybe_advisor() -> void:
-	if GameState.turn == ADVISOR_TURN_2 and GameState.advisors.size() < MAX_ADVISORS:
+	if GameState.advisors.size() >= MAX_ADVISORS:
+		return
+	if GameState.turn == ADVISOR_TURN_2 or ((GameState.turn - 1) % REWARD_EVERY == 0 and GameState.turn > 1):
 		_queue_popup(_show_advisor_pick)
 
 
@@ -1644,7 +1655,7 @@ func _show_advisor_pick() -> void:
 
 
 func _hire(id: String) -> void:
-	GameState.advisors.append(id)
+	GameState.hire_advisor(id)
 	_on_log_message("Hired %s." % GameState.advisor_text(id))
 	if advisor_overlay != null:
 		advisor_overlay.queue_free()

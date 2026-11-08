@@ -324,6 +324,7 @@ func end_turn() -> void:
 	_resolve_demands()
 	_run_issues()
 	_spawn_issue()
+	_run_loyalty()
 	_tick_cooldowns()
 	_end_turn_mods()
 	approval_history.append(approval)
@@ -501,6 +502,15 @@ const ABILITIES := {
 
 var cooldowns := {}
 
+const LOYALTY_START := 70
+const LOYALTY_DECAY := 3
+const LOYALTY_USE_GAIN := 10
+const LOYALTY_WEAK := 30
+const LOYALTY_RISK := 40
+const SCANDAL_CHANCE := 0.25
+const SCANDAL_PENALTY := 6
+
+var loyalty := {}
 
 const ADVISORS := [
 	["hawk", "Budget Hawk", "+2 income every turn."],
@@ -517,7 +527,7 @@ var advisors: Array = []
 
 
 func has_advisor(id: String) -> bool:
-	return advisors.has(id)
+	return advisors.has(id) and int(loyalty.get(id, LOYALTY_START)) >= LOYALTY_WEAK
 
 
 func advisor_text(id: String) -> String:
@@ -686,7 +696,25 @@ func use_ability(id: String) -> bool:
 			change_attitude(lowest, 8)
 		"strategist":
 			actions_left += 1
+	loyalty[id] = mini(100, int(loyalty.get(id, LOYALTY_START)) + LOYALTY_USE_GAIN)
 	cooldowns[id] = ABILITIES[id][2]
 	log_message.emit("%s used %s." % [advisor_text(id).split(":")[0], ABILITIES[id][0]])
 	meters_changed.emit()
 	return true
+
+
+func hire_advisor(id: String) -> void:
+	advisors.append(id)
+	loyalty[id] = LOYALTY_START
+
+
+func _run_loyalty() -> void:
+	for id in advisors.duplicate():
+		loyalty[id] = clampi(int(loyalty.get(id, LOYALTY_START)) - LOYALTY_DECAY, 0, 100)
+		if loyalty[id] < LOYALTY_RISK and randf() < SCANDAL_CHANCE:
+			var nm: String = advisor_text(id).split(":")[0]
+			advisors.erase(id)
+			loyalty.erase(id)
+			cooldowns.erase(id)
+			_change("approval", -SCANDAL_PENALTY)
+			log_message.emit("Scandal! %s resigned (-%d approval)." % [nm, SCANDAL_PENALTY])
