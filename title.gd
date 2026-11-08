@@ -307,6 +307,15 @@ func _show_achievements() -> void:
 	heading.add_theme_font_size_override("font_size", 28)
 	v.add_child(heading)
 	
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(470, minf(get_viewport_rect().size.y - 220.0, 520.0))
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	scroll.add_child(list)
+		
 	var count := 0
 	for a in GameState.ACHIEVEMENTS:
 		var got: bool = GameState.is_unlocked(a[0])
@@ -317,7 +326,7 @@ func _show_achievements() -> void:
 		item.custom_minimum_size = Vector2(440, 0)
 		item.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		item.modulate = Color(1, 1, 1, 1.0 if got else 0.5)
-		v.add_child(item)
+		list.add_child(item)
 	heading.text = "Achievements (%d / %d)" % [count, GameState.ACHIEVEMENTS.size()]
 
 	var close := Button.new()
