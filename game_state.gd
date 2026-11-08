@@ -127,6 +127,8 @@ func reset() -> void:
 	approval_history = [approval]
 	advisors.clear()
 	cooldowns.clear()
+	loyalty.clear()
+	scandals = 0
 
 
 func city_average(stat: String) -> int:
@@ -418,6 +420,9 @@ const ACHIEVEMENTS := [
 	["mod_expiring", "Beat the Clock", "Finish a term with Expiring Policies on."],
 	["mod_pride", "Spread the Love", "Finish a term with Borough Pride on."],
 	["mod_midterms", "Midterm Master", "Finish a term with Midterms on."],
+	["cabinet_full", "Full Cabinet", "Have2 advisors at the end of a term."],
+	["loyal", "Loyal Friends", "Finish a term with every advisors abover 60 loyalty."],
+	["scandal", "Scandal Sheet", "Lose an advisor to a scandal."],
 ]
 
 
@@ -437,6 +442,12 @@ func _earned(cards: int) -> Array:
 			ids.append("penny")
 		if cards <= 20:
 			ids.append("minimalist")
+		if advisors.size() >= 2:
+			ids.append("cabinet_full")
+		if not advisors.is_empty() and advisors.all(func(a): return int(loyalty.get(a, 0)) > 60):
+			ids.append("loyal")
+	if scandals >= 1:
+		ids.append("scandal")
 	if demands_met >= 8:
 		ids.append("promises")
 	if issues_fixed >= 10:
@@ -511,6 +522,7 @@ const SCANDAL_CHANCE := 0.25
 const SCANDAL_PENALTY := 6
 
 var loyalty := {}
+var scandals := 0
 
 const ADVISORS := [
 	["hawk", "Budget Hawk", "+2 income every turn."],
@@ -714,6 +726,7 @@ func _run_loyalty() -> void:
 		if loyalty[id] < LOYALTY_RISK and randf() < SCANDAL_CHANCE:
 			var nm: String = advisor_text(id).split(":")[0]
 			advisors.erase(id)
+			scandals += 1
 			loyalty.erase(id)
 			cooldowns.erase(id)
 			_change("approval", -SCANDAL_PENALTY)

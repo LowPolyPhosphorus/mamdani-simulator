@@ -972,6 +972,7 @@ func _show_summary() -> void:
 	left.add_child(_label("RUN", 12, UITheme.MUTED))
 	_summary_row(left, "Turns served", "%d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS])
 	_summary_row(left, "Cards enacted", str(cards_enacted)); _summary_row(left, "Peak approval", str(maxi(GameState.peak_approval, GameState.approval))); _summary_row(left, "Demands met", "%d / %d" % [GameState.demands_met, GameState.demands_met + GameState.demands_failed]); _summary_row(left, "Issues fixed", str(GameState.issues_fixed))
+	_summary_row(left, "Advisors", ", ".join(GameState.advisors.map(func(a): return GameState.advisor_text(a).split(":")[0])) if not GameState.advisors.is_empty() else "None")
 	
 	var now_approval: int = GameState.get_value("approval")
 	if now_approval > prev_best:
@@ -1240,6 +1241,7 @@ func _save_game() -> void:
 		"cooldowns": GameState.cooldowns.duplicate(),
 		"loyalty": GameState.loyalty.duplicate(),
 		"advisors": GameState.advisors.duplicate(),
+		"scandals": GameState.scandals,
 	}
 	var save := ConfigFile.new()
 	save.set_value("run", "data", data)
@@ -1266,6 +1268,7 @@ func _load_game() -> bool:
 	GameState.advisors = data.get("advisors", [])
 	GameState.cooldowns = data.get("cooldowns", [])
 	GameState.loyalty = data.get("loyalty", {})
+	GameState.scandals = data.get("scandals", 0)
 	for id in GameState.advisors:
 		if not GameState.loyalty.has(id):
 			GameState.loyalty[id] = GameState.LOYALTY_START
