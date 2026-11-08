@@ -8,6 +8,8 @@ const EVENT_COOLDOWN := 2.0
 const DEMAND_CHANCE := 0.7
 const STARTER_SIZE : = 12
 const REWARD_EVERY := 4
+const TICKER_H := 36
+const BASE_MARGIN := 14
 const METERS := ["budget", "affordability", "ridership", "approval"]
 const MAP_LAYOUT := {
 	"Manhattan": Rect2(150, 8, 120, 170),
@@ -47,6 +49,16 @@ var reward_overlay: Control
 var ticker_label: Label
 var ticker_tween: Tween
 var _ticker_lines: Array[String] = []
+var advisor_overlay: Control
+var advisors_box: VBoxContainer
+var ticker_bar: ColorRect
+var ticker_strip: Control
+var root_margin: MarginContainer
+var log_scroll: ScrollContainer
+var _ticker_p := 0.0
+var _popup_queue: Array[Callable] = []
+var _pumping := false
+var intro_dialog: AcceptDialog
 
 var city_bars := {}
 var city_labels := {}
@@ -83,6 +95,7 @@ func _ready() -> void:
 	GameState.turn_changed.connect(_maybe_trigger_event)
 	GameState.turn_changed.connect(_maybe_reward)
 	GameState.turn_changed.connect(_autosave)
+	GameState.turn_changed.connect(_maybe_advisor)
 	GameState.turn_changed.connect(_sfx.bind("turn"))
 	GameState.meters_changed.connect(_refresh_hand)
 	GameState.log_message.connect(_on_log_message)
@@ -96,6 +109,11 @@ func _ready() -> void:
 	_update_ui()
 	_draw_hand()
 	_show_intro()
+	if intro_dialog != null:
+		intro_dialog.confirmed.connect(func(): _queue_popup(_show_advisor_pick))
+		intro_dialog.canceled.connect(func(): _queue_popup(_show_advisor_pick))
+	else:
+		_queue_popup(_show_advisor_pick)
 	_autosave()
 
 
@@ -103,6 +121,7 @@ func _ready() -> void:
 
 func _build_layout() -> void:
 	var margin := MarginContainer.new()
+	root_margin = margin
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 14)
@@ -123,7 +142,7 @@ func _build_layout() -> void:
 	middle.add_child(_build_right_panel())
 
 	root_box.add_child(_build_hand_panel())
-	root_box.add_child(_build_ticker())
+	add_child(_build_ticker())
 
 
 func _make_panel(title: String, min_width: int = 0) -> VBoxContainer:
@@ -186,6 +205,10 @@ func _build_left_panel() -> Control:
 	box.add_child(_label("GATEKEEPERS", 12, UITheme.MUTED))
 	for body in GameState.GATEKEEPERS:
 		_add_attitude_row(box, body)
+	box.add_child(_label("CABINET", 12, UITheme.MUTED))
+	advisors_box = VBoxContainer.new()
+	advisors_box.add_theme_constant_override("separation", 4)
+	box.add_child(advisors_box)
 	box.add_child(_label("ACTIVE POLICIES", 12, UITheme.MUTED))
 	policies_box = VBoxContainer.new()
 	policies_box.add_theme_constant_override("separation", 6)
@@ -227,10 +250,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		if pause_overlay != null:
 			_close_pause()
-		elif event_overlay == null and summary_overlay == null and reward_overlay == null and not game_ended:
+		elif event_overlay == null and summary_overlay == null and reward_overlay == null and advisor_overlay == null and not game_ended:
 			_show_pause()
 		return
-	if pause_overlay != null or enacting or event_overlay != null or summary_overlay != null or reward_overlay != null or game_ended:
+	if pause_overlay != null or enacting or event_overlay != null or summary_overlay != null or reward_overlay != null or advisor_overlay != null or game_ended:
 		return
 	if event.keycode == KEY_N:
 		_target_neediest()
@@ -305,7 +328,18 @@ func _build_right_panel() -> Control:
 	issues_box = VBoxContainer.new()
 	issues_box.add_theme_constant_override("separation", 6)
 	box.add_child(_scroll_wrap(issues_box))
-	box.add_child(_label("LOG", 12, UITheme.MUTED))
+	var log_head := HBoxContainer.new()
+	var log_title := _label("LOG", 12, UITheme.MUTED)
+	log_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_head.add_child(log_title)
+	var log_toggle := Button.new()
+	log_toggle.text = "Show"
+	log_toggle.toggle_mode = true
+	log_toggle.toggled.connect(func(on: bool):
+		log_scroll.visible = on
+		log_toggle.text = "Hide" if on else "Show")
+	log_head.add_child(log_toggle)
+	box.add_child(log_head)
 	log_label = _label("", 13, UITheme.MUTED)
 	log_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -359,6 +393,7 @@ func _update_ui() -> void:
 	_update_attitudes()
 	_update_boroughs()
 	_update_policies()
+	_update_advisors()
 	_update_demands()
 	_update_issues()
 	if GameState.is_game_over() and not game_ended:
@@ -659,7 +694,10 @@ func _maybe_trigger_event() -> void:
 	recent_events.append(current_event)
 	if recent_events.size() > mini(8, events.size() - 1):
 		recent_events.pop_front()
-	_show_event_popup()
+	var ev := current_event
+	_queue_popup(func():
+		current_event = ev
+		_show_event_popup())
 
 
 func _on_event_choice(chose_a: bool) -> void:
@@ -681,6 +719,7 @@ func _show_intro() -> void:
 		return
 	GameState.intro_shown = true
 	var d := AcceptDialog.new()
+	intro_dialog = d
 	d.title = "Your first turn"
 	d.dialog_text = "1. Click a borough on the map to target it. The tags show where trouble is. \n2. Play cards from your hand at the bottom. Each costs budget and one action. \n3. Click End Turn when you're done. \n\nTip: switch on Auto-target neediest in the top bar to have the game pick the weakest borough for you."
 	d.ok_button_text = "Let's go"
@@ -989,9 +1028,10 @@ func _add_wrapped(parent: Node, label: Label) -> void:
 	parent.add_child(label)
 
 func _add_log_scroll(parent: Node) -> void:
-	var log_scroll := _scroll_wrap(log_label)
+	log_scroll = _scroll_wrap(log_label)
 	log_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	log_scroll.custom_minimum_size = Vector2(0, 110)
+	log_scroll.visible = false
 	parent.add_child(log_scroll)
 
 const SAVE_PATH := "user://best.cfg"
@@ -1176,6 +1216,7 @@ func _save_game() -> void:
 		"peak_approval": GameState.peak_approval,
 		"approval_history": GameState.approval_history.duplicate(),
 		"owned": owned.map(func(c): return c.card_name),
+		"cooldowns": GameState.cooldowns.duplicate(),
 	}
 	var save := ConfigFile.new()
 	save.set_value("run", "data", data)
@@ -1199,6 +1240,7 @@ func _load_game() -> bool:
 	GameState.actions_left = data["actions_left"]
 	GameState.target_borough = data["target_borough"]
 	GameState.stats = data["stats"]
+	GameState.cooldowns = data.get("cooldowns", {})
 	GameState.attitudes = data["attitudes"]
 	
 	GameState.active_policies.clear()
@@ -1387,9 +1429,7 @@ func _maybe_reward() -> void:
 		return
 	if (GameState.turn - 1) % REWARD_EVERY != 0:
 		return
-	while event_overlay != null:
-		await get_tree().process_frame
-	_show_reward()
+	_queue_popup(_show_reward)
 
 
 func _show_reward() -> void:
@@ -1470,17 +1510,34 @@ func _fade_in() -> void:
 
 
 func _build_ticker() -> Control:
-	var strip := Control.new()
-	strip.custom_minimum_size = Vector2(0, 32)
-	strip.clip_contents = true
-	var bg := ColorRect.new()
-	bg.color = Color("#C0392B")
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	strip.add_child(bg)
+	ticker_strip = Control.new()
+	ticker_strip.clip_contents = true
+	ticker_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ticker_strip.z_index = 120
+	
+	ticker_bar = ColorRect.new()
+	ticker_bar.color = Color("#C0392B")
+	ticker_bar.clip_contents = true
+	ticker_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ticker_strip.add_child(ticker_bar)
+	
 	ticker_label = _label("", 16, Color.WHITE)
-	ticker_label.custom_maximum_size.y = 32
-	strip.add_child(ticker_label)
-	return strip
+	ticker_label.custom_minimum_size.y = TICKER_H
+	ticker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ticker_bar.add_child(ticker_label)
+
+	resized.connect(func(): _set_ticker(_ticker_p))
+	_set_ticker(0.0)
+	return ticker_strip
+
+
+func _set_ticker(p: float) -> void:
+	_ticker_p = p
+	ticker_strip.position = Vector2(0, size.y - TICKER_H)
+	ticker_strip.size = Vector2(size.x, TICKER_H)
+	ticker_bar.position = Vector2(0, TICKER_H * (1.0 - p))
+	ticker_bar.size = Vector2(size.x, TICKER_H)
+	root_margin.add_theme_constant_override("margin_bottom", roundi(lerpf(BASE_MARGIN, TICKER_H, p)))
 
 
 func _turn_banner() -> void:
@@ -1492,14 +1549,130 @@ func _turn_banner() -> void:
 	var h := GameState.approval_history
 	if h.size() >= 2:
 		parts.append("APPROVAL %s" % _signed_num(h[h.size() - 1] - h[h.size() - 2]))
-	parts.append(_ticker_lines)
+	parts.append_array(_ticker_lines)
 	_ticker_lines.clear()
 	ticker_label.text = "   +++   ".join(parts)
 	ticker_label.reset_size()
-	var start: float = ticker_label.get_parent().size.x
+	var start: float = size.x
 	var end := -ticker_label.size.x
 	ticker_label.position = Vector2(start, 0)
 	if ticker_tween != null:
 		ticker_tween.kill()
 	ticker_tween = create_tween()
+	ticker_tween.tween_method(_set_ticker, _ticker_p, 1.0, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	ticker_tween.tween_property(ticker_label, "position:x", end, (start - end) / 120.0)
+	ticker_tween.tween_method(_set_ticker, 1.0, 0.0, 0.3)
+
+
+func _update_advisors() -> void:
+	_clear(advisors_box)
+	if GameState.advisors.is_empty():
+		_add_wrapped(advisors_box, _label("No one hired yet.", 13, UITheme.MUTED))
+		return
+	for id in GameState.advisors:
+		var item := VBoxContainer.new()
+		item.add_theme_constant_override("separation", 2)
+		_add_wrapped(advisors_box, _label(GameState.advisor_text(id), 13))
+		var ab: Array = GameState.ABILITIES[id]
+		var cd: int = int(GameState.cooldowns.get(id, 0))
+		var b := Button.new()
+		b.text = ab[0] if cd == 0 else "%s (%d)" % [ab[0], cd]
+		b.tooltip_text = "%s Cooldown: %d turns." % [ab[1], ab[2]]
+		b.disabled = not GameState.can_use_ability(id)
+		b.pressed.connect(_use_ability.bind(id))
+		item.add_child(b)
+		advisors_box.add_child(item)
+
+
+func _use_ability(id: String) -> void:
+	if GameState.use_ability(id):
+		_sfx("enact")
+
+
+func _maybe_advisor() -> void:
+	if GameState.turn == ADVISOR_TURN_2 and GameState.advisors.size() < MAX_ADVISORS:
+		_queue_popup(_show_advisor_pick)
+
+
+func _show_advisor_pick() -> void:
+	if advisor_overlay != null or GameState.advisors.size() >= MAX_ADVISORS:
+		return
+	var options: Array = GameState.ADVISORS.filter(func(a): return not GameState.advisors.has(a[0]))
+	options.shuffle()
+	options = options.slice(0, 3)
+	if options.is_empty():
+		return
+	
+	advisor_overlay = Control.new()
+	advisor_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(advisor_overlay)
+	
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	advisor_overlay.add_child(dim)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	advisor_overlay.add_child(center)
+	
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+	
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	margin.add_child(v)
+	v.add_child(_label("Hire an advisor", 26, UITheme.ACCENT))
+	
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	for a in options:
+		var b := Button.new()
+		b.text = "%s\n\n%s" % [a[1], a[2]]
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size = Vector2(220, 160)
+		b.pressed.connect(_hire.bind(a[0]))
+		row.add_child(b)
+
+
+func _hire(id: String) -> void:
+	GameState.advisors.append(id)
+	_on_log_message("Hired %s." % GameState.advisor_text(id))
+	if advisor_overlay != null:
+		advisor_overlay.queue_free()
+		advisor_overlay = null
+	GameState.actions_left = GameState.actions_per_turn()
+	GameState.meters_changed.emit()
+	_autosave()
+
+
+func _any_popup() -> bool:
+	return event_overlay != null or reward_overlay != null or advisor_overlay != null \
+		or summary_overlay != null or pause_overlay!= null
+
+
+func _queue_popup(next: Callable) -> void:
+	_popup_queue.append(next)
+	_pump_popups()
+
+
+func _pump_popups() -> void:
+	if _pumping:
+		return
+	_pumping = true
+	while not _popup_queue.is_empty():
+		while _any_popup():
+			await get_tree().process_frame
+		if game_ended:
+			_popup_queue.clear()
+			break
+		var next: Callable = _popup_queue.pop_front()
+		next.call()
+		await get_tree().process_frame
+	_pumping = false
