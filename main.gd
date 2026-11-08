@@ -1015,6 +1015,14 @@ func _show_summary() -> void:
 	buttons.add_child(again)
 
 	var menu := Button.new()
+	var copy := Button.new()
+	copy.text = "Copy result"
+	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	copy.custom_minimum_size = Vector2(0, 48)
+	copy.pressed.connect(func():
+		DisplayServer.clipboard_set(_result_text())
+		copy.text = "Copied!")
+	buttons.add_child(copy)
 	menu.text = "Main menu"
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	menu.custom_minimum_size = Vector2(0, 48)
@@ -1717,3 +1725,19 @@ func _pump_popups() -> void:
 			break
 		await get_tree().process_frame
 	_pumping = false
+
+
+func _result_text() -> String:
+	var lines: Array[String] = []
+	lines.append("Mamdani Simulator (%s)" % GameState.difficulty.capitalize())
+	lines.append(GameState.get_ending())
+	lines.append("Approval %d | Afford %d | Ridership %d | Budget %d" % [
+		GameState.approval, GameState.affordability, GameState.ridership, GameState.budget])
+	var b_parts: Array[String] = []
+	for b in GameState.BOROUGHS:
+		b_parts.append("%s %d" % [b, GameState.get_value("approval", b)])
+	lines.append(" / ".join(b_parts))
+	lines.append("Turns %d/%d, %d cards, %d demands met" % [
+		mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS, cards_enacted, GameState.demands_met])
+	lines.append("https://mamdani-simulator.lowpolyphosphor.us")
+	return "\n".join(lines)

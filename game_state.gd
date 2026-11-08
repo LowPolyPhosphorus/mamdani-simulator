@@ -420,7 +420,7 @@ const ACHIEVEMENTS := [
 	["mod_expiring", "Beat the Clock", "Finish a term with Expiring Policies on."],
 	["mod_pride", "Spread the Love", "Finish a term with Borough Pride on."],
 	["mod_midterms", "Midterm Master", "Finish a term with Midterms on."],
-	["cabinet_full", "Full Cabinet", "Have2 advisors at the end of a term."],
+	["cabinet_full", "Full Cabinet", "Have 2 advisors at the end of a term."],
 	["loyal", "Loyal Friends", "Finish a term with every advisors abover 60 loyalty."],
 	["scandal", "Scandal Sheet", "Lose an advisor to a scandal."],
 ]
