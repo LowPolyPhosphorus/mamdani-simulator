@@ -20,6 +20,7 @@ const TRACKS := [
 var music_volume := 0.6
 var music_player: AudioStreamPlayer
 var last_track := ""
+var music_rng := RandomNumberGenerator.new()
 
 signal track_changed(title: String)
 
@@ -32,6 +33,7 @@ const TITLES := {
 }
 
 func _ready() -> void:
+	music_rng.randomize()
 	var cfg := ConfigFile.new()
 	cfg.load(PATH)
 	volume = cfg.get_value("audio", "volume", 1.0)
@@ -184,7 +186,7 @@ func _play_next() -> void:
 		if last_track == "" or not ResourceLoader.exists(MUSIC_DIR + last_track):
 			return
 		choices.append(last_track)
-	last_track = choices.pick_random()
+	last_track = choices[music_rng.randi() % choices.size()]
 	music_player.stream = load(MUSIC_DIR + last_track)
 	music_player.play()
 	track_changed.emit(TITLES.get(last_track, last_track))

@@ -8,6 +8,7 @@ const EVENT_COOLDOWN := 2.0
 const DEMAND_CHANCE := 0.7
 const STARTER_SIZE : = 12
 const REWARD_EVERY := 4
+const MIN_DECK := 6
 const MAX_ADVISORS := 2
 const ADVISOR_TURN_2 := 9
 const TICKER_H := 36
@@ -405,6 +406,8 @@ func _build_dialogs() -> void:
 
 func _update_ui() -> void:
 	turn_label.text = "TURN %d / %d" % [mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS]
+	if GameState.daily_label != "":
+		turn_label.text += "  DAILY"
 	budget_label.text = "Budget %d" % GameState.budget
 	var net: int = GameState.income() - _total_upkeep()
 	net_label.text = "Net %s / turn" % _signed_num(net)
@@ -1068,7 +1071,7 @@ const SAVE_PATH := "user://best.cfg"
 
 func _difficulty_key() -> String:
 	var d = GameState.get("difficulty")
-	return ("default" if d == null else str(d)) + ("+mods" if not GameState.modifiers.is_empty() else "")
+	return ("default" if d == null else str(d)) + ("+mods" if not GameState.modifiers.is_empty() else "") + ("+daily" if GameState.daily_label != "" else "")
 
 
 func _record_best() -> int:
@@ -1250,6 +1253,7 @@ func _save_game() -> void:
 		"loyalty": GameState.loyalty.duplicate(),
 		"advisors": GameState.advisors.duplicate(),
 		"scandals": GameState.scandals,
+		"daily": GameState.daily_label,
 	}
 	var save := ConfigFile.new()
 	save.set_value("run", "data", data)
@@ -1277,6 +1281,7 @@ func _load_game() -> bool:
 	GameState.cooldowns = data.get("cooldowns", [])
 	GameState.loyalty = data.get("loyalty", {})
 	GameState.scandals = data.get("scandals", 0)
+	GameState.daily_label = data.get("daily", "")
 	for id in GameState.advisors:
 		if not GameState.loyalty.has(id):
 			GameState.loyalty[id] = GameState.LOYALTY_START
@@ -1520,10 +1525,22 @@ func _show_reward() -> void:
 		b.pressed.connect(_pick_reward.bind(c))
 		row.add_child(b)
 	
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 12)
+	v.add_child(bottom)
+	
 	var skip := Button.new()
 	skip.text = "Skip"
+	skip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	skip.pressed.connect(_pick_reward.bind(null))
 	v.add_child(skip)
+	
+	var trim := Button.new()
+	trim.text = "Remove a card instead"
+	trim.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	trim.disabled = owned.size() <= MIN_DECK
+	trim.pressed.connect(_show_remove_picker)
+	bottom.add_child(trim)
 
 
 func _pick_reward(card: PolicyCard) -> void:
@@ -1730,6 +1747,8 @@ func _pump_popups() -> void:
 func _result_text() -> String:
 	var lines: Array[String] = []
 	lines.append("Mamdani Simulator (%s)" % GameState.difficulty.capitalize())
+	if GameState.daily_label != "":
+		lines.append("Daily run " + GameState.daily_label)
 	lines.append(GameState.get_ending())
 	lines.append("Approval %d | Afford %d | Ridership %d | Budget %d" % [
 		GameState.approval, GameState.affordability, GameState.ridership, GameState.budget])
@@ -1748,3 +1767,61 @@ func _valid_event(e) -> bool:
 	if not ok:
 		push_warning("Skipping broken event: " + str(e.resource_path))
 	return ok
+
+
+func _show_remove_picker() -> void:
+	if reward_overlay == null:
+		return
+	reward_overlay.queue_free()
+	reward_overlay = Control.new()
+	reward_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(reward_overlay)
+	
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	reward_overlay.add_child(dim)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	reward_overlay.add_child(center)
+	
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+	
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("sepearation", 10)
+	margin.add_child(v)
+	v.add_child(_label("Remove a card from your deck", 26, UITheme.ACCENT))
+	
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(460, minf(get_viewport_rect().size.y - 240.0, 420.0))
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	
+	for c in owned:
+		var b := Button.new()
+		b.text = "%s (Cost %d)" % [c.card_name, c.cost]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.tooltip_text = c.description
+		b.pressed.connect(_remove_card.bind(c))
+		list.add_child(b)
+	
+	var back := Button.new()
+	back.text = "Skip"
+	back.pressed.connect(_pick_reward.bind(null))
+	v.add_child(back)
+
+
+func _remove_card(card: PolicyCard) -> void:
+	owned.erase(card)
+	_on_log_message("Removed %s from your deck." % card.card_name)
+	_pick_reward(null)

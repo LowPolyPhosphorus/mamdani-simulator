@@ -63,6 +63,10 @@ func _ready() -> void:
 func _start(d: String) -> void:
 	GameState.set_difficulty(d)
 	GameState.reset()
+	if daily_on:
+		GameState.modifiers.clear()
+		GameState.daily_label = _daily_label()
+		seed(hash(GameState.daily_label))
 	var fade := ColorRect.new()
 	fade.color = Color(0, 0, 0, 0)
 	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -205,6 +209,12 @@ const DIFFICULTIES := [
 ]
 
 var diff_overlay: Control
+var daily_on := false
+
+
+func _daily_label() -> String:
+	var d := Time.get_date_dict_from_system(true)
+	return "%04d-%02d-%02d" % [d["year"], d["month"], d["day"]]
 
 func _show_difficulty() -> void:
 	if diff_overlay != null:
@@ -247,7 +257,15 @@ func _show_difficulty() -> void:
 		b.pressed.connect(_start.bind(d[1]))
 		v.add_child(b)
 	
-	_add_mod_toggles(v); var back := Button.new()
+	var daily := Button.new()
+	daily.toggle_mode = true
+	daily.text = "Daily run (%s): no modifiers" % _daily_label()
+	daily.button_pressed = daily_on
+	daily.toggled.connect(func(on: bool): daily_on = on)
+	v.add_child(daily)
+	
+	_add_mod_toggles(v)
+	var back := Button.new()
 	back.text = "Back"
 	back.pressed.connect(_close_difficulty)
 	v.add_child(back)
@@ -257,6 +275,7 @@ func _close_difficulty() -> void:
 	diff_overlay = null
 
 func _continue() -> void:
+	daily_on = false
 	var save := ConfigFile.new()
 	if save.load("user://run.cfg") != OK:
 		return

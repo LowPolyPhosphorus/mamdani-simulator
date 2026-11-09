@@ -129,6 +129,8 @@ func reset() -> void:
 	cooldowns.clear()
 	loyalty.clear()
 	scandals = 0
+	daily_label = ""
+	randomize()
 
 
 func city_average(stat: String) -> int:
@@ -524,6 +526,7 @@ const SCANDAL_CHANCE := 0.25
 const SCANDAL_PENALTY := 6
 
 var loyalty := {}
+var daily_label := ""
 var scandals := 0
 
 const ADVISORS := [
