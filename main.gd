@@ -78,7 +78,7 @@ var _last_city := {}
 
 func _ready() -> void:
 	deck.assign(_load_folder("res://cards"))
-	events.assign(_load_folder("res://events"))
+	events.assign(_load_folder("res://events").filter(_valid_event))
 	print("Loaded ", deck.size(), " cards and ", events.size(), " events")
 	for child in get_children():
 		child.queue_free()
@@ -1741,3 +1741,10 @@ func _result_text() -> String:
 		mini(GameState.turn, GameState.MAX_TURNS), GameState.MAX_TURNS, cards_enacted, GameState.demands_met])
 	lines.append("https://mamdani-simulator.lowpolyphosphor.us")
 	return "\n".join(lines)
+
+
+func _valid_event(e) -> bool:
+	var ok: bool = e is GameEvent and e.title != "" and e.choice_a != null and e.choice_b != null
+	if not ok:
+		push_warning("Skipping broken event: " + str(e.resource_path))
+	return ok

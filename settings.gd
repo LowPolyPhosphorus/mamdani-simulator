@@ -21,6 +21,16 @@ var music_volume := 0.6
 var music_player: AudioStreamPlayer
 var last_track := ""
 
+signal track_changed(title: String)
+
+const TITLES := {
+	"shaving_mirror.mp3": "Shaving Mirror",
+	"funky_boxstep.mp3": "Funky Boxstep",
+	"your_call.mp3": "Your Call",
+	"aces_high.mp3": "Aces High",
+	"enter_the_party": "Enter the Party",
+}
+
 func _ready() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PATH)
@@ -30,6 +40,7 @@ func _ready() -> void:
 	fullscreen = cfg.get_value("video", "fullscreen", false)
 	apply()
 	_start_music()
+	track_changed.connect(_show_toast)
 
 
 func apply() -> void:
@@ -176,3 +187,25 @@ func _play_next() -> void:
 	last_track = choices.pick_random()
 	music_player.stream = load(MUSIC_DIR + last_track)
 	music_player.play()
+	track_changed.emit(TITLES.get(last_track, last_track))
+
+
+func _show_toast(title: String) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+	var l := Label.new()
+	l.text = "Now playing: %s - Kevin Macleod" % title
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(l)
+	await get_tree().process_frame
+	var vp := get_viewport().get_visible_rect().size
+	l.position = Vector2(16, vp.y - 70)
+	l.modulate.a - 0.0
+	var t := create_tween()
+	t.tween_property(l, "modulate:a", 1.0, 0.4)
+	t.tween_interval(3.0)
+	t.tween_property(l, "modulate:a", 0.0, 0.6)
+	t.tween_callback(layer.queue_free)
