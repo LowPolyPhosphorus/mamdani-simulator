@@ -37,5 +37,11 @@ play it: https://mamdani-simulator.lowpolyphosphor.us
 - n targets the neediest borough
 - escape opens the pause menu
 
+## music 
+Music by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By attribution
+4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+"Shaving Mirror", "Funky Boxstep", "Your Call", "Funk Game Loop", "Aces High", "Enter the Party"
+
 ## license
 MIT [LICENSE](/LICENSE)
