@@ -692,6 +692,7 @@ func _refresh_hand() -> void:
 func _on_card_pressed(card: PolicyCard, panel: PanelContainer) -> void:
 	if GameState.play_card(card, GameState.target_borough):
 		cards_enacted += 1; _sfx("enact")
+		Stats.record_card(card.card_name) 
 		panel.set_meta("played", true)
 		_refresh_hand()
 
@@ -923,6 +924,8 @@ func _show_summary() -> void:
 	if summary_overlay != null:
 		return
 	var prev_best := _record_best()
+	var won: bool = GameState.approval > GameState.lose_threshold()
+	Stats.record_run(won, mini(GameState.turn, GameState.MAX_TURNS), cards_enacted) 
 	summary_overlay = Control.new()
 	summary_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(summary_overlay)

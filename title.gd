@@ -38,6 +38,11 @@ func _ready() -> void:
 	box.add_child(settings_btn)
 	
 	var ach := Button.new(); ach.text = "Achievements"; ach.custom_minimum_size = Vector2(0, 40); ach.pressed.connect(_show_achievements); box.add_child(ach); var row := HBoxContainer.new()
+	var stats_btn := Button.new()
+	stats_btn.text = "Stats"
+	stats_btn.custom_minimum_size = Vector2(0, 40)
+	stats_btn.pressed.connect(_show_stats)
+	box.add_child(stats_btn)
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
 	var help := Button.new()
@@ -405,3 +410,73 @@ func _on_mod_toggled(on: bool, id: String, b: Button, m: Array) -> void:
 	elif not on:
 		GameState.modifiers.erase(id)
 	_style_mod_button(b, m, on)
+
+
+var stats_overlay: Control
+
+func _show_stats() -> void:
+	if stats_overlay != null:
+		return
+	stats_overlay = Control.new()
+	stats_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(stats_overlay)
+	
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stats_overlay.add_child(dim)
+	
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stats_overlay.add_child(center)
+	
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+	
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("seperation", 8)
+	margin.add_child(v)
+	
+	var heading := Label.new()
+	heading.text = "Lifetime stats"
+	heading.add_theme_font_size_override("font_size", 28)
+	v.add_child(heading)
+	
+	var d: Dictionary = Stats.data
+	var runs: int = d["runs"]
+	var rate := 0 if runs == 0 else roundi(100.0 * d["wins"] / runs)
+	var rows := [
+		["Runs played", str(runs)],
+		["Terms finished", "%d (%d%%)" % [d["wins"], rate]],
+		["Voted out", str(d["losses"])],
+		["Current streak", str(d["streak"])],
+		["Best streak", str(d["best_streak"])],
+		["Turns served", str(d["turns"])],
+		["Cards enacted", str(d["cards"])],
+		["Demands met", str(d["demands_met"])],
+		["Issues fixed", str(d["issues_fixed"])],
+		["Favorite card", Stats.favorite_card()],
+	]
+	for r in rows:
+		var row := HBoxContainer.new()
+		row.custom_minimum_size = Vector2(380, 0)
+		var n := Label.new()
+		n.text = r[0]
+		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(n)
+		var val := Label.new()
+		val.text = r[1]
+		row.add_child(val)
+		v.add_child(row)
+	
+	var close := Button.new()
+	close.text = "Back"
+	close.pressed.connect(func():
+		stats_overlay.queue_free()
+		stats_overlay = null)
+	v.add_child(close)

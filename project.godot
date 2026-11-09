@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 GameState="*uid://bnuatvsw68qm3"
 Settings="*uid://cmiq7mp7u4rhh"
+Stats="*uid://b1itjlh6sw35y"
 
 [display]
 
