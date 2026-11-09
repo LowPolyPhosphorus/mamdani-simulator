@@ -580,7 +580,7 @@ func _effect_parts(pairs: Array) -> String:
 		var value: int = pair[1]
 		if value == 0:
 			continue
-		var col := "#6fdc8c" if value > 0 else "#ff6b6b"
+		var col := "#" + (UITheme.GOOD if value > 0 else UITheme.BAD).to_html(false)
 		parts.append("[color=%s]%s %s[/color]" % [col, _signed_num(value), pair[0]])
 	return ", ".join(parts)
 

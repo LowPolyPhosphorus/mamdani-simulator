@@ -5,6 +5,7 @@ const PATH := "user://settings.cfg"
 var volume := 1.0
 var muted := false
 var fullscreen := false
+var colorblind := false
 var overlay: Control
 
 const MUSIC_DIR := "res://music/"
@@ -40,6 +41,7 @@ func _ready() -> void:
 	muted = cfg.get_value("audio", "muted", false)
 	music_volume = cfg.get_value("audio", "music_volume", 0.6)
 	fullscreen = cfg.get_value("video", "fullscreen", false)
+	colorblind = cfg.get_value("video", "colorblind", false)
 	apply()
 	_start_music()
 	track_changed.connect(_show_toast)
@@ -51,6 +53,7 @@ func apply() -> void:
 	if not OS.has_feature("web"):
 		DisplayServer.window_set_mode(
 			DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+	UITheme.set_colorblind(colorblind)
 
 
 func save() -> void:
@@ -60,6 +63,7 @@ func save() -> void:
 	cfg.set_value("audio", "muted", muted)
 	cfg.set_value("video", "fullscreen", fullscreen)
 	cfg.set_value("audio", "music_volume", music_volume)
+	cfg.set_value("video", "colorblind", colorblind)
 	cfg.save(PATH)
 
 
@@ -129,7 +133,15 @@ func open(parent: Node) -> void:
 			fullscreen = on
 			apply())
 		v.add_child(fs)
-
+	
+	var cb := CheckButton.new()
+	cb.text = "Colorblind colors"
+	cb.button_pressed = colorblind
+	cb.toggled.connect(func(on: bool):
+		colorblind = on
+		apply())
+	v.add_child(cb)
+	
 	var back := Button.new()
 	back.text = "Back"
 	back.custom_minimum_size = Vector2(0, 44)

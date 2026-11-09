@@ -16,15 +16,15 @@ const SUBWAY_GREEN := Color("#AAAAAA")
 const SUBWAY_BLUE := Color("#888888")
 
 # Functional Status Colors
-const GOOD := Color("#2ECC71")
-const BAD := Color("#E74C3C")
-const GOOD_FILL := Color("#27AE60")
-const BAD_FILL := Color("#C0392B")
-const MID_FILL := Color("#F39C12")
-const FLASH_UP := Color("#2ECC71")
-const FLASH_DOWN := Color("#E74C3C")
+static var GOOD := Color("#2ECC71")
+static var BAD := Color("#E74C3C")
+static var GOOD_FILL := Color("#27AE60")
+static var BAD_FILL := Color("#C0392B")
+static var MID_FILL := Color("#F39C12")
+static var FLASH_UP := Color("#2ECC71")
+static var FLASH_DOWN := Color("#E74C3C")
 
-const METERS := { "budget": Color("#CCCCCC"), "affordability": Color("#AAAAAA"), "ridership": Color("#999999"), "approval": GOOD }
+const METERS := { "budget": Color("#CCCCCC"), "affordability": Color("#AAAAAA"), "ridership": Color("#999999"), "approval": Color("#2ECC71") }
 const FONTS := ["res://fonts/Fredoka.ttf", "res://fonts/Nunito.ttf"]
 
 static func flat(bg: Color, border := Color.TRANSPARENT, bw := 0, r := 3, m := 10.0, shadow := 0) -> StyleBoxFlat:
@@ -53,3 +53,11 @@ static func make_background() -> TextureRect:
 
 static func build() -> Theme:
 	return Theme.new()
+
+static func set_colorblind(on: bool) -> void:
+	GOOD = Color("#3498DB") if on else Color("#2ECC71")
+	BAD = Color("#E67E22") if on else Color("#E74C3C")
+	GOOD_FILL = Color("#2E86C1") if on else Color("#27AE60")
+	BAD_FILL = Color("#D35400") if on else Color("#C0392B")
+	FLASH_UP = GOOD
+	FLASH_DOWN = BAD
