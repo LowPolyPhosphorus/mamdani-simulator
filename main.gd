@@ -62,6 +62,7 @@ var _ticker_p := 0.0
 var _popup_queue: Array[Callable] = []
 var _pumping := false
 var intro_dialog: AcceptDialog
+var confirm_dialog: ConfirmationDialog
 
 var city_bars := {}
 var city_labels := {}
@@ -88,7 +89,7 @@ func _ready() -> void:
 	_fade_in()
 	_build_layout()
 	_build_dialogs()
-	end_turn_button.pressed.connect(GameState.end_turn)
+	end_turn_button.pressed.connect(_try_end_turn)
 	GameState.turn_changed.connect(_apply_auto_target)
 	GameState.turn_changed.connect(_spawn_demand)
 	GameState.turn_changed.connect(_update_ui)
@@ -281,7 +282,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_target_neediest()
 	elif event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
 		if not end_turn_button.disabled:
-			GameState.end_turn()
+			_try_end_turn()
 	elif event.keycode >= KEY_1 and event.keycode <= KEY_5:
 		_enact_slot(event.keycode - KEY_1)
 
@@ -1828,3 +1829,29 @@ func _remove_card(card: PolicyCard) -> void:
 	owned.erase(card)
 	_on_log_message("Removed %s from your deck." % card.card_name)
 	_pick_reward(null)
+
+
+func _try_end_turn() -> void:
+	if confirm_dialog != null:
+		return
+	var can_play_any := false
+	for panel in hand_box.get_children():
+		var btn: Button = panel.get_meta("button")
+		if not btn.disabled:
+			can_play_any = true
+			break
+	if GameState.actions_left <= 0 or not can_play_any:
+		GameState.end_turn()
+		return
+	confirm_dialog = ConfirmationDialog.new()
+	confirm_dialog.title = "End turn?"
+	confirm_dialog.dialog_text = "You still have %d action(s) and playable cards. End the turn anyway?" % GameState.actions_left
+	confirm_dialog.ok_button_text = "End turn"
+	confirm_dialog.cancel_button_text = "Keep playing"
+	confirm_dialog.confirmed.connect(GameState.end_turn)
+	confirm_dialog.visibility_changed.connect(func():
+		if confirm_dialog != null and not confirm_dialog.visible:
+			confirm_dialog.queue_free()
+			confirm_dialog = null)
+	add_child(confirm_dialog)
+	confirm_dialog.popup_centered()
