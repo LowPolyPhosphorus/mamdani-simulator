@@ -45,7 +45,7 @@ play it: https://mamdani-simulator.lowpolyphosphor.us
 - 1 to 5 enacts the card in that slot
 - space or enter ends the turn
 - n targets the neediest borough
-- escape opens the pause menu
+- escape opens the pause menu (or closes settings)
 
 ## music 
 Music by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By attribution
